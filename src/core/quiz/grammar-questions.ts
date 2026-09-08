@@ -12,12 +12,41 @@ export type GrammarGenerator = (
   seed: string,
 ) => Question | null;
 
+/** Непрерывный кусок японского текста (кана + кандзи + 々ー). */
+const JP_RUN = /[぀-ヿ一-鿿々ー]+/g;
+
+/**
+ * Спрягаемые варианты ядра конструкции: в примерах оно часто стоит не в
+ * словарной форме из заголовка (〜ている), а в вежливой/озвонченной
+ * (〜ています, 〜でいます). Без этого cloze не находит куда ставить пропуск и
+ * вопрос сваливается на слабый fallback «Что выражает…».
+ */
+function conjugationVariants(core: string): string[] {
+  const v: string[] = [];
+  if (core.endsWith('ている')) {
+    const s = core.slice(0, -3);
+    v.push(`${s}ています`, `${s}でいます`, `${s}でいる`, `${s}てる`, `${s}でる`);
+  }
+  if (core.endsWith('ていない') || core.endsWith('ていません')) {
+    const s = core.replace(/てい(ない|ません)$/, '');
+    v.push(`${s}ていません`, `${s}でいません`, `${s}ていない`, `${s}でいない`);
+  }
+  if (core.endsWith('いる') && !core.endsWith('ている')) v.push(`${core.slice(0, -2)}います`);
+  if (core.endsWith('だ')) v.push(`${core.slice(0, -1)}です`);
+  return v;
+}
+
 export function coreCandidates(title: string): string[] {
   const head = title.split('(')[0] ?? title;
-  return head
-    .split(/[／/]/)
-    .map((s) => s.replace(/[〜~\s]/g, '').trim())
-    .filter(Boolean);
+  const out = new Set<string>();
+  for (const part of head.split(/[／/〜~+]/)) {
+    for (const run of part.match(JP_RUN) ?? []) {
+      out.add(run);
+      for (const variant of conjugationVariants(run)) out.add(variant);
+    }
+  }
+  // Длинные (более специфичные) кандидаты — первыми.
+  return [...out].sort((a, b) => b.length - a.length);
 }
 
 function stripTitleParen(title: string): string {

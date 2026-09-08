@@ -29,6 +29,36 @@ describe('coreCandidates', () => {
     expect(coreCandidates('〜ます (вежливая форма глагола)')).toEqual(['ます']);
     expect(coreCandidates('は (тема предложения)')).toEqual(['は']);
   });
+
+  it('keeps only the Japanese run from a title with Latin/Cyrillic words', () => {
+    expect(coreCandidates('Основа глагола + たいです (хочу сделать…)')).toContain('たいです');
+  });
+
+  it('adds polite / voiced conjugation variants so cloze can match real examples', () => {
+    const c = coreCandidates('〜ている (делаю сейчас / состояние)');
+    expect(c).toContain('ている');
+    expect(c).toContain('ています'); // 開いています
+    expect(c).toContain('でいます'); // 読んでいます
+    const m = coreCandidates('まだ〜ていません (ещё не сделал)');
+    expect(m).toContain('ていません');
+    expect(m).toContain('でいません');
+  });
+
+  it('produces a cloze (not the weak "what does X express" fallback) for a ている-style point', () => {
+    const point: GrammarPointFull = {
+      id: 'n5-teiru', level: 'N5', title: '〜ている (делаю сейчас / состояние)',
+      layer: 4, tags: [], related: [], relatedTitles: [],
+      bodyMarkdown: '## Кратко\nТе-форма + いる.',
+      examples: [
+        { jaRuby: '私[わたし]は 本[ほん]を 読[よ]んでいます。', ru: 'Я читаю книгу.' },
+        { jaRuby: 'ドアが 開[ひら]いています。', ru: 'Дверь открыта.' },
+      ],
+    };
+    const q = genCloze(point, [point], 'seed');
+    expect(q).not.toBeNull();
+    expect(q!.kind).toBe('cloze');
+    expect((q as { sentenceRuby: string }).sentenceRuby).toContain('___');
+  });
 });
 
 describe('sectionBody / firstSentence', () => {

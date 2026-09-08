@@ -6,10 +6,14 @@ export function QuestionView({
   question,
   onAnswer,
   revealed,
+  showExplainLink = true,
 }: {
   question: Question;
   onAnswer: (a: Answer) => void;
   revealed: GradedAnswer | null;
+  /** Ссылка «Подробнее» на страницу пункта. Отключается во вступительном тесте:
+   * переход уводит со страницы теста и теряет его состояние. */
+  showExplainLink?: boolean;
 }) {
   const [pickedIndex, setPickedIndex] = useState<number | null>(null);
   const [pickedOrder, setPickedOrder] = useState<number[]>([]);
@@ -27,9 +31,11 @@ export function QuestionView({
           <span className="q-translation"> — {question.translationRu}</span>
         </p>
       )}
-      <a className="q-more" href={`#/${question.itemType}/${question.itemId}`}>
-        Подробнее
-      </a>
+      {showExplainLink && (
+        <a className="q-more" href={`#/${question.itemType}/${question.itemId}`}>
+          Подробнее
+        </a>
+      )}
     </div>
   );
 

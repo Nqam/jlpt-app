@@ -17,10 +17,8 @@ test('taking the placement test on first launch creates known grammar cards and 
   // Answer every question with whatever the first choice is (deterministic:
   // answerIndex is seeded, but we don't need to answer correctly -- either way
   // the test converges to SOME frontier and the completion screen appears).
-  // Up to 2*ceil(log2(N+1)) questions now (double-confirmation binary search,
-  // see src/core/placement.ts) -- for the current ~93-item N5+N4 grammar
-  // corpus that's up to 14 questions, each needing up to 2 loop iterations
-  // (pick an option, then click "Далее"), so 20 was too tight.
+  // Single-question binary search: ceil(log2(N+1)) questions (~7 for the
+  // current ~93-item N5+N4 grammar corpus). The guard is generously loose.
   for (let guard = 0; guard < 60; guard++) {
     if (await win.getByText(/Отмечено как уже известные/).count()) break;
 

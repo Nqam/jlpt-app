@@ -59,6 +59,19 @@ describe('QuestionView', () => {
     expect(screen.getByRole('link', { name: /подробнее/i })).toHaveAttribute('href', '#/kanji/n5-学');
   });
 
+  it('hides the detail link when showExplainLink is false (placement test)', () => {
+    render(
+      <QuestionView
+        question={cloze}
+        onAnswer={vi.fn()}
+        revealed={{ correct: false, rating: 1 }}
+        showExplainLink={false}
+      />,
+    );
+    expect(screen.getByText('Неверно')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /подробнее/i })).toBeNull();
+  });
+
   it('assemble: Готово is disabled until all tokens are placed, then reports the order', () => {
     const onAnswer = vi.fn();
     render(<QuestionView question={assemble} onAnswer={onAnswer} revealed={null} />);

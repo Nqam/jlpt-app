@@ -101,6 +101,7 @@ export function PlacementScreen() {
         question={current.question}
         onAnswer={answer}
         revealed={graded}
+        showExplainLink={false}
       />
       {graded && (
         <button type="button" className="btn-primary" onClick={next}>

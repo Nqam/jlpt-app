@@ -9,11 +9,6 @@ export interface PlacementState {
   lo: number;
   hi: number;
   askedCount: number;
-  /** 'first' — probing the current index for the first time; 'second' — asking a
-   * confirming second question about the SAME index before trusting the result. */
-  phase: 'first' | 'second';
-  /** Result of the first question, only meaningful while `phase === 'second'`. */
-  firstCorrect: boolean;
 }
 
 /**
@@ -23,7 +18,7 @@ export interface PlacementState {
  */
 export function initPlacement(content: ContentDb): PlacementState {
   const ids = availableItemIds(content, 'grammar');
-  return { ids, lo: 0, hi: ids.length, askedCount: 0, phase: 'first', firstCorrect: false };
+  return { ids, lo: 0, hi: ids.length, askedCount: 0 };
 }
 
 export function isPlacementDone(state: PlacementState): boolean {
@@ -37,9 +32,9 @@ function probeIndex(state: PlacementState): number {
 /**
  * Следующий вопрос теста (`null`, если тест завершён или контент недоступен).
  * Переиспользует `generateForCard` -- тот же генератор, что использует обычная
- * сессия повторения грамматики, с `reps=0`. Seed включает `askedCount`, так что
- * первый и подтверждающий (второй) вопрос про один и тот же пункт -- два РАЗНЫХ
- * вопроса, не повтор одного и того же.
+ * сессия повторения грамматики, с `reps=0`. Каждый шаг бинарного поиска
+ * проверяет НОВЫЙ пункт грамматики (середину сужающегося диапазона), так что
+ * вопросы не повторяются.
  */
 export function nextPlacementQuestion(
   state: PlacementState,
@@ -61,31 +56,28 @@ export function nextPlacementQuestion(
 }
 
 /**
- * Бинарный поиск с двойным подтверждением: каждый индекс проверяется ДВУМЯ
- * разными вопросами, и граница сдвигается только если ОБА верны. Один
- * ошибочный (в любую сторону) ответ из пары -> индекс трактуется как "не знает"
- * -- это осознанно консервативный перекос: ложно пропустить пункт стоит
- * пользователю немного лишней практики, а ложно засчитать его как известный
- * (при простом угадывании 1 из 4 вариантов, 25% шанс на одном вопросе) сразу
- * создаёт SRS-карточку, которую потом нельзя тихо исправить. Два вопроса подряд
- * снижают шанс случайно пройти один индекс с 25% до 6.25% (0.25*0.25).
+ * Обычный бинарный поиск: один вопрос на индекс. Верный ответ сдвигает нижнюю
+ * границу вверх (`lo = idx + 1` — пункт и всё до него считается известным),
+ * ошибочный сдвигает верхнюю вниз (`hi = idx` — пункт и всё после него считается
+ * неизвестным). Ошибка засчитывается сразу, второй попытки на тот же вопрос нет.
  *
  * `lo`/`hi` -- границы диапазона, где проходит граница "знает/не знает" среди
- * `ids` (`ids[0,lo)` подтверждено известно, `ids[hi,length)` подтверждено
- * неизвестно). Каждая ЗАВЕРШЁННАЯ пара вопросов ровно вдвое сокращает `hi-lo`,
- * так что тест сходится за `2 * ceil(log2(ids.length+1))` вопросов при любой
- * последовательности ответов.
+ * `ids` (`ids[0,lo)` — известно, `ids[hi,length)` — неизвестно). Каждый ответ
+ * ровно вдвое сокращает `hi-lo`, так что тест сходится за
+ * `ceil(log2(ids.length + 1))` вопросов при любой последовательности ответов
+ * (~7 для нынешних ~93 пунктов N5+N4).
+ *
+ * Случайно угаданный ответ (1 из 4, 25%) сдвигает границу на один пункт вперёд и
+ * создаёт одну SRS-карточку со статусом "уже известно". Это исправляется: любой
+ * последующий неверный ответ утягивает границу назад, а в Настройках есть кнопка
+ * "Сбросить результаты N5/N4", которая удаляет именно помеченные тестом карточки.
  */
 export function applyPlacementAnswer(state: PlacementState, correct: boolean): PlacementState {
   const askedCount = state.askedCount + 1;
-  if (state.phase === 'first') {
-    return { ...state, phase: 'second', firstCorrect: correct, askedCount };
-  }
   const idx = probeIndex(state);
-  const bothCorrect = state.firstCorrect && correct;
-  return bothCorrect
-    ? { ...state, lo: idx + 1, phase: 'first', firstCorrect: false, askedCount }
-    : { ...state, hi: idx, phase: 'first', firstCorrect: false, askedCount };
+  return correct
+    ? { ...state, lo: idx + 1, askedCount }
+    : { ...state, hi: idx, askedCount };
 }
 
 /** id всех пунктов ниже найденной границы -- то, что тест считает уже известным. */

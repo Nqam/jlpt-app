@@ -30,65 +30,86 @@ function fakeContent(ids: string[]): ContentDb {
   } as unknown as ContentDb;
 }
 
-/** `correctFor` is a pure function of the item id -- both the first and the
- * confirming second question about the same item get the same oracle answer,
- * modeling "either you really know this or you don't". */
 function runToCompletion(
   content: ContentDb,
   correctFor: (itemId: string) => boolean,
-): PlacementState {
+): { final: PlacementState; asked: string[] } {
   let state = initPlacement(content);
+  const asked: string[] = [];
   while (!isPlacementDone(state)) {
     const step = nextPlacementQuestion(state, content, 'test');
     if (!step) break;
+    asked.push(step.itemId);
     state = applyPlacementAnswer(state, correctFor(step.itemId));
   }
-  return state;
+  return { final: state, asked };
 }
 
 describe('core/placement', () => {
   const ids = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+  const bound = (n: number) => Math.ceil(Math.log2(n + 1));
 
   it('converges to the full frontier when every answer is correct', () => {
-    const content = fakeContent(ids);
-    const final = runToCompletion(content, () => true);
+    const { final } = runToCompletion(fakeContent(ids), () => true);
     expect(placementFrontierIds(final)).toEqual(ids);
-    expect(final.askedCount).toBeLessThanOrEqual(2 * Math.ceil(Math.log2(ids.length + 1)));
+    expect(final.askedCount).toBeLessThanOrEqual(bound(ids.length));
   });
 
   it('converges to an empty frontier when every answer is wrong', () => {
-    const content = fakeContent(ids);
-    const final = runToCompletion(content, () => false);
+    const { final } = runToCompletion(fakeContent(ids), () => false);
     expect(placementFrontierIds(final)).toEqual([]);
-    expect(final.askedCount).toBeLessThanOrEqual(2 * Math.ceil(Math.log2(ids.length + 1)));
+    expect(final.askedCount).toBeLessThanOrEqual(bound(ids.length));
   });
 
-  it('converges to a hand-traced middle boundary with mixed answers, at 2x the single-question cost', () => {
-    // Oracle: the first 3 ids (by canonical order) are "known" -- same answer for
-    // both questions about a given item. Hand trace for ids.length=8, lo=0,hi=8:
-    //   idx=4 -> p5 (index 4, not < 3) -> wrong both times -> hi=4 (2 questions)
-    //   idx=2 -> p3 (index 2, < 3) -> correct both times -> lo=3 (2 questions)
-    //   idx=3 -> p4 (index 3, not < 3) -> wrong both times -> hi=3 (2 questions)
-    //   lo=3, hi=3 -> done. frontier = ids[0..3) = ['p1','p2','p3']. 6 questions
-    //   (double the 3 a single-question binary search would have taken).
-    const content = fakeContent(ids);
-    const final = runToCompletion(content, (itemId) => ids.indexOf(itemId) < 3);
+  it('converges to a hand-traced middle boundary with mixed answers', () => {
+    // Oracle: the first 3 ids (by canonical order) are "known". Hand trace for
+    // ids.length=8, lo=0,hi=8:
+    //   idx=4 -> p5 (index 4, not < 3) -> wrong -> hi=4
+    //   idx=2 -> p3 (index 2, < 3)     -> correct -> lo=3
+    //   idx=3 -> p4 (index 3, not < 3) -> wrong -> hi=3
+    //   lo=3, hi=3 -> done. frontier = ids[0..3) = ['p1','p2','p3']. 3 questions.
+    const { final, asked } = runToCompletion(fakeContent(ids), (id) => ids.indexOf(id) < 3);
     expect(placementFrontierIds(final)).toEqual(['p1', 'p2', 'p3']);
-    expect(final.askedCount).toBe(6);
+    expect(final.askedCount).toBe(3);
+    expect(asked).toEqual(['p5', 'p3', 'p4']);
   });
 
-  it('terminates within the theoretical 2x bound for a larger corpus', () => {
+  it('never asks about the same grammar point twice', () => {
     const bigIds = Array.from({ length: 93 }, (_, i) => `g${i}`);
-    const content = fakeContent(bigIds);
-    // Parity of the item's position -- a pure function of the id, not of call
-    // order, so both questions about the same item agree, same as any real answer.
-    const final = runToCompletion(content, (itemId) => bigIds.indexOf(itemId) % 2 === 0);
-    expect(final.askedCount).toBeLessThanOrEqual(2 * Math.ceil(Math.log2(bigIds.length + 1)));
+    const { asked } = runToCompletion(fakeContent(bigIds), (id) => bigIds.indexOf(id) % 2 === 0);
+    expect(new Set(asked).size).toBe(asked.length);
+  });
+
+  it('terminates within ceil(log2(N+1)) questions for a larger corpus', () => {
+    const bigIds = Array.from({ length: 93 }, (_, i) => `g${i}`);
+    const { final } = runToCompletion(fakeContent(bigIds), (id) => bigIds.indexOf(id) % 2 === 0);
+    expect(final.askedCount).toBeLessThanOrEqual(bound(bigIds.length));
+  });
+
+  it('a wrong answer counts immediately: the failed item is not in the frontier and is not re-asked', () => {
+    const content = fakeContent(ids);
+    let state = initPlacement(content); // lo=0, hi=8
+    const first = nextPlacementQuestion(state, content, 'test')!;
+    expect(first.itemId).toBe('p5'); // idx 4
+    state = applyPlacementAnswer(state, false); // wrong -> hi = 4, no second try
+    expect(state.hi).toBe(4);
+    expect(state.lo).toBe(0);
+    const second = nextPlacementQuestion(state, content, 'test')!;
+    expect(second.itemId).not.toBe(first.itemId);
+    expect(placementFrontierIds(state)).not.toContain('p5');
+  });
+
+  it('a single correct answer advances the frontier by one (no confirmation step)', () => {
+    const content = fakeContent(ids);
+    let state = initPlacement(content); // lo=0, hi=8, idx 4
+    state = applyPlacementAnswer(state, true);
+    expect(state.lo).toBe(5);
+    expect(state.hi).toBe(8);
   });
 
   it('nextPlacementQuestion returns null once the test is done', () => {
     const content = fakeContent(ids);
-    const final = runToCompletion(content, () => true);
+    const { final } = runToCompletion(content, () => true);
     expect(isPlacementDone(final)).toBe(true);
     expect(nextPlacementQuestion(final, content, 'test')).toBeNull();
   });
@@ -101,28 +122,6 @@ describe('core/placement', () => {
     expect(step!.question.itemType).toBe('grammar');
     expect(['cloze', 'choice', 'assemble']).toContain(step!.question.kind);
     expect(step!.itemId).toBe(ids[Math.floor(ids.length / 2)]);
-  });
-
-  it('the first and confirming second question about the same item are different questions', () => {
-    const content = fakeContent(ids);
-    let state = initPlacement(content);
-    const first = nextPlacementQuestion(state, content, 'test')!;
-    state = applyPlacementAnswer(state, true); // -> phase 'second', same idx
-    const second = nextPlacementQuestion(state, content, 'test')!;
-    expect(second.itemId).toBe(first.itemId); // still probing the same item
-    expect(second.question.id).not.toBe(first.question.id); // but a different question
-  });
-
-  it('does not advance the frontier on a single lucky correct answer without a matching second confirmation', () => {
-    const content = fakeContent(ids);
-    let state = initPlacement(content); // lo=0, hi=8
-    state = applyPlacementAnswer(state, true); // first question: correct (could be a lucky guess)
-    expect(state.phase).toBe('second');
-    expect(state.lo).toBe(0); // not trusted yet -- lo/hi unchanged mid-pair
-    expect(state.hi).toBe(8);
-    state = applyPlacementAnswer(state, false); // confirming question: wrong
-    expect(state.lo).toBe(0);
-    expect(state.hi).toBe(4); // the probed index (4) is rejected, not accepted
   });
 
   it('is immediately done with an empty frontier when no grammar is available', () => {
