@@ -218,40 +218,42 @@ describe('ContentDb', () => {
     expect(hits.length).toBe(5);
   });
 
-  it('lists all 9 N5 texts sorted by id', () => {
-    const t = db.listTexts('N5');
-    expect(t).toHaveLength(9);
-    for (let i = 1; i < t.length; i++) expect(t[i]!.id >= t[i - 1]!.id).toBe(true);
-    expect(t[0]!.bodyRuby).toBe('');
-    expect(t[0]!.questions).toEqual([]);
+  it('lists all 15 lessons ordered by (stage, id)', () => {
+    const ls = db.listLessons();
+    expect(ls).toHaveLength(15);
+    for (let i = 1; i < ls.length; i++) {
+      expect(ls[i]!.stage).toBeGreaterThanOrEqual(ls[i - 1]!.stage);
+    }
+    expect(ls[0]!.id).toBe('n5-hanami');
+    expect(ls[0]!.stage).toBe(2);
+    // 15 мигрированных текстов — свободное чтение
+    expect(ls.every((l) => l.isFreeReading && l.introducesCount === 0)).toBe(true);
   });
 
-  it('lists all 6 N4 texts sorted by id, independently of N5', () => {
-    const n4 = db.listTexts('N4');
-    expect(n4).toHaveLength(6);
-    expect(db.listTexts('N5')).toHaveLength(9); // unaffected by N4 landing
+  it('gets a full lesson with body, translation, questions and empty introduces/markers', () => {
+    const l = db.getLesson('n5-hanami');
+    expect(l).not.toBeNull();
+    expect(l!.title).toBe('お花見');
+    expect(l!.kind).toBe('text');
+    expect(l!.stage).toBe(2);
+    expect(l!.bodyRuby).toContain('桜');
+    expect(l!.translationRu).toContain('сакура');
+    expect(l!.questions).toHaveLength(4);
+    expect(l!.questions[0]!.choices.length).toBeGreaterThanOrEqual(3);
+    expect(typeof l!.questions[0]!.answerIndex).toBe('number');
+    expect(l!.introduces).toEqual([]);
+    expect(l!.markers).toEqual([]);
   });
 
-  it('gets a full text with body, translation and questions', () => {
-    const p = db.getText('n5-kitsune-to-tsuru');
-    expect(p).not.toBeNull();
-    expect(p!.title).toBe('キツネとツル');
-    expect(p!.level).toBe('N5');
-    expect(p!.bodyRuby).toContain('きつね');
-    expect(p!.translationRu).toContain('журавл');
-    expect(p!.questions).toHaveLength(4);
-    expect(p!.questions[0]!.choices).toHaveLength(4);
-    expect(typeof p!.questions[0]!.answerIndex).toBe('number');
+  it('returns null for an unknown lesson id', () => {
+    expect(db.getLesson('nope')).toBeNull();
   });
 
-  it('returns null for an unknown text id', () => {
-    expect(db.getText('nope')).toBeNull();
-  });
-
-  it('gets a full N4 text', () => {
-    const p = db.getText('n4-kin-no-ono-gin-no-ono');
-    expect(p).not.toBeNull();
-    expect(p!.level).toBe('N4');
-    expect(p!.questions.length).toBeGreaterThanOrEqual(3);
+  it('gets a migrated N4 lesson', () => {
+    const l = db.getLesson('n4-onsen');
+    expect(l).not.toBeNull();
+    expect(l!.stage).toBe(52);
+    expect(l!.kind).toBe('text');
+    expect(l!.questions.length).toBeGreaterThanOrEqual(3);
   });
 });

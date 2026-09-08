@@ -1,6 +1,9 @@
 import type { Database } from 'sql.js';
 import type { PlatformAdapter } from '@/platform/adapter';
-import type { GrammarPoint, KanjiPoint, Level, LevelCode, TextPoint, VocabPoint } from '@/core/types';
+import type {
+  GrammarPoint, KanjiPoint, Level, LevelCode, VocabPoint, TextPoint,
+  LessonMeta, LessonFull, LessonIntroduce, LessonMarker,
+} from '@/core/types';
 import { loadSqlJs } from './sqljs';
 
 export type GrammarPointFull = GrammarPoint & {
@@ -36,29 +39,47 @@ interface VocabRow {
   meaning_ru: string;
 }
 
-interface TextListRow {
+interface LessonMetaRow {
   id: string;
-  level: string;
+  stage: number;
+  kind: string;
   title: string;
+  introduces_count: number;
 }
 
-interface TextRow extends TextListRow {
+interface LessonRow {
+  id: string;
+  stage: number;
+  kind: string;
+  title: string;
   body_ruby: string;
   translation_ru: string;
 }
 
-interface TextQuestionRow {
+interface LessonQuestionRow {
   prompt: string;
   choices_json: string;
   answer_index: number;
+}
+
+interface LessonIntroduceRow {
+  item_type: string;
+  item_id: string;
+  role: string;
+}
+
+interface LessonMarkerRow {
+  item_type: string;
+  item_id: string;
+  surface: string;
+  sentence_ruby: string;
+  sentence_ru: string;
 }
 
 /** Колонки для списков/поиска — без тяжёлого body_markdown (полный скан на каждое нажатие). */
 const LIST_COLS = 'id, level, title, layer, tags_json';
 /** Полный набор — только для getGrammar. */
 const FULL_COLS = `${LIST_COLS}, body_markdown`;
-/** Колонки для списков текстов — без body_ruby и translation_ru. */
-const TEXT_LIST_COLS = 'id, level, title';
 
 export class ContentDb {
   private constructor(private readonly db: Database) {}
@@ -228,46 +249,95 @@ export class ContentDb {
       );
   }
 
-  private rowToText(r: TextListRow): TextPoint {
-    return {
+  listLessons(): LessonMeta[] {
+    return this.all<LessonMetaRow>(
+      `SELECT l.id, l.stage, l.kind, l.title,
+              (SELECT count(*) FROM lesson_introduces li
+                 WHERE li.lesson_id = l.id AND li.role = 'introduce') AS introduces_count
+       FROM lessons l
+       ORDER BY l.stage, l.id`,
+    ).map((r) => ({
       id: r.id,
-      level: r.level,
+      stage: r.stage,
+      kind: r.kind as LessonMeta['kind'],
       title: r.title,
-      bodyRuby: '',
-      translationRu: '',
-      questions: [],
-    };
+      introducesCount: r.introduces_count,
+      isFreeReading: r.introduces_count === 0,
+    }));
   }
 
-  listTexts(level: LevelCode): TextPoint[] {
-    return this.all<TextListRow>(
-      `SELECT ${TEXT_LIST_COLS} FROM texts WHERE level = ? ORDER BY id`,
-      [level],
-    ).map((r) => this.rowToText(r));
-  }
-
-  getText(id: string): TextPoint | null {
-    const rows = this.all<TextRow>(
-      `SELECT ${TEXT_LIST_COLS}, body_ruby, translation_ru FROM texts WHERE id = ?`,
+  getLesson(id: string): LessonFull | null {
+    const rows = this.all<LessonRow>(
+      'SELECT id, stage, kind, title, body_ruby, translation_ru FROM lessons WHERE id = ?',
       [id],
     );
     const row = rows[0];
     if (!row) return null;
-    const questions = this.all<TextQuestionRow>(
-      'SELECT prompt, choices_json, answer_index FROM text_questions WHERE text_id = ? ORDER BY ord',
+
+    const questions = this.all<LessonQuestionRow>(
+      'SELECT prompt, choices_json, answer_index FROM lesson_questions WHERE lesson_id = ? ORDER BY ord',
       [id],
     ).map((q) => ({
       prompt: q.prompt,
       choices: JSON.parse(q.choices_json) as string[],
       answerIndex: q.answer_index,
     }));
+
+    const introduces: LessonIntroduce[] = this.all<LessonIntroduceRow>(
+      'SELECT item_type, item_id, role FROM lesson_introduces WHERE lesson_id = ? ORDER BY ord',
+      [id],
+    ).map((r) => ({
+      type: r.item_type as LessonIntroduce['type'],
+      id: r.item_id,
+      role: r.role as LessonIntroduce['role'],
+    }));
+
+    const markers: LessonMarker[] = this.all<LessonMarkerRow>(
+      'SELECT item_type, item_id, surface, sentence_ruby, sentence_ru FROM lesson_markers WHERE lesson_id = ?',
+      [id],
+    ).map((r) => ({
+      type: r.item_type as LessonMarker['type'],
+      id: r.item_id,
+      surface: r.surface,
+      sentenceRuby: r.sentence_ruby,
+      sentenceRu: r.sentence_ru,
+    }));
+
+    const introducesCount = introduces.filter((i) => i.role === 'introduce').length;
     return {
       id: row.id,
-      level: row.level,
+      stage: row.stage,
+      kind: row.kind as LessonFull['kind'],
       title: row.title,
+      introducesCount,
+      isFreeReading: introducesCount === 0,
       bodyRuby: row.body_ruby,
       translationRu: row.translation_ru,
       questions,
+      introduces,
+      markers,
+    };
+  }
+
+  // --- Переходные обёртки для /texts до плана 5-2 (удаляются в задаче 4). ---
+  listTexts(level: LevelCode): TextPoint[] {
+    const cut = level === 'N5' ? -Infinity : 40;
+    const hi = level === 'N5' ? 40 : Infinity;
+    return this.listLessons()
+      .filter((l) => l.stage >= (level === 'N5' ? -Infinity : cut) && l.stage < hi)
+      .map((l) => ({ id: l.id, level, title: l.title, bodyRuby: '', translationRu: '', questions: [] }));
+  }
+
+  getText(id: string): TextPoint | null {
+    const l = this.getLesson(id);
+    if (!l) return null;
+    return {
+      id: l.id,
+      level: l.stage < 40 ? 'N5' : 'N4',
+      title: l.title,
+      bodyRuby: l.bodyRuby,
+      translationRu: l.translationRu,
+      questions: l.questions,
     };
   }
 }
