@@ -4,6 +4,7 @@ import { KanjiListScreen } from './screens/KanjiListScreen';
 import { KanjiDetailScreen } from './screens/KanjiDetailScreen';
 import { VocabListScreen } from './screens/VocabListScreen';
 import { VocabDetailScreen } from './screens/VocabDetailScreen';
+import { CourseScreen } from './screens/CourseScreen';
 import { TextsListScreen } from './screens/TextsListScreen';
 import { TextDetailScreen } from './screens/TextDetailScreen';
 import { TodayScreen } from './screens/TodayScreen';
@@ -36,6 +37,7 @@ export const routes: RouteObject[] = [
   { path: '/kanji/:id', element: <KanjiDetailScreen /> },
   { path: '/vocab', element: <VocabListScreen /> },
   { path: '/vocab/:id', element: <VocabDetailScreen /> },
+  { path: '/course', element: <CourseScreen /> },
   { path: '/texts', element: <TextsListScreen /> },
   { path: '/texts/:id', element: <TextDetailScreen /> },
   { path: '/progress', element: <ProgressScreen /> },

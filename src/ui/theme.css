@@ -299,3 +299,17 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .btn-ghost { max-width: 100%; overflow-wrap: anywhere; }
 /* Вкладки уровней при нехватке ширины переносятся, а не режутся краем окна. */
 .level-tabs { flex-wrap: wrap; }
+
+/* --- Plan 5-2: course + lesson player --- */
+.course-continue { display: block; margin: 0.5rem 0 1.25rem; text-align: center; }
+.course-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.course-item-link {
+  display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+  padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 0.5rem;
+  text-decoration: none; color: var(--text);
+}
+.course-item-link--locked { opacity: 0.55; }
+.course-item-title { flex: 1; font-weight: 500; overflow-wrap: anywhere; }
+.course-item-state { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+.course-item-state[data-state='current'] { color: var(--accent); font-weight: 600; }
+.course-item-state[data-state='done'] { color: var(--ok); }
