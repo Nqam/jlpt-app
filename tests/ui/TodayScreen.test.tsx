@@ -68,8 +68,9 @@ describe('TodayScreen', () => {
     renderScreen();
     expect(screen.getByText(/вступительный тест/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /пройти/i })).toHaveAttribute(
-      'href', expect.stringContaining('/placement'),
+      'href', expect.stringContaining('/placement/grammar'),
     );
+    expect(screen.getByText(/тесты по кандзи и словам/i)).toBeInTheDocument();
   });
 
   it('does not offer the placement test once placement_offered is set, even with zero cards', () => {

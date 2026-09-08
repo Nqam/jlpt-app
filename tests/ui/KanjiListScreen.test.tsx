@@ -117,4 +117,20 @@ describe('KanjiListScreen', () => {
     // exactly one item has a dot; the other ('n5-一') has none
     expect(container.querySelectorAll('.status-dot')).toHaveLength(1);
   });
+
+  it('links to the section placement test when the active level is available', () => {
+    const { getByRole } = renderScreen();
+    expect(getByRole('link', { name: /пройти тест по разделу/i })).toHaveAttribute(
+      'href', expect.stringContaining('/placement/kanji'),
+    );
+  });
+
+  it('hides the section-test link for a locked active level', () => {
+    effLevels.value = [
+      { code: 'N5', ord: 1, titleRu: 'N5', status: 'locked', rawStatus: 'available' },
+      ...defaultEff.slice(1),
+    ];
+    const { queryByRole } = renderScreen();
+    expect(queryByRole('link', { name: /пройти тест по разделу/i })).toBeNull();
+  });
 });

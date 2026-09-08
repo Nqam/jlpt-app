@@ -58,7 +58,9 @@ describe('SettingsScreen', () => {
     settings['new_per_day'] = 5;
     settings['review_queue_cap'] = 100;
     settings['furigana_enabled'] = true;
-    settings['placement_marked_ids'] = [];
+    settings['placement_marked_grammar_ids'] = [];
+    settings['placement_marked_kanji_ids'] = [];
+    settings['placement_marked_vocab_ids'] = [];
     setSetting.mockClear();
     deleteCard.mockClear();
     exportUserDb.mockClear();
@@ -158,43 +160,46 @@ describe('SettingsScreen', () => {
     await waitFor(() => expect(screen.getByText(/не удалось проверить обновления/i)).toBeInTheDocument());
   });
 
-  it('links to the placement test for a retake', () => {
+  it('shows a link for each section test', () => {
     renderScreen();
-    expect(screen.getByRole('link', { name: /вступительный тест/i })).toHaveAttribute(
-      'href', expect.stringContaining('/placement'),
+    expect(screen.getByRole('link', { name: /тест: грамматика/i })).toHaveAttribute(
+      'href', expect.stringContaining('/placement/grammar'),
+    );
+    expect(screen.getByRole('link', { name: /тест: кандзи/i })).toHaveAttribute(
+      'href', expect.stringContaining('/placement/kanji'),
+    );
+    expect(screen.getByRole('link', { name: /тест: слова/i })).toHaveAttribute(
+      'href', expect.stringContaining('/placement/vocab'),
     );
   });
 
   it('shows no reset buttons when nothing was placement-marked', () => {
     renderScreen();
-    expect(screen.queryByRole('button', { name: /сбросить результаты/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /сбросить тест/i })).toBeNull();
   });
 
-  it('shows a reset button per level with placement-marked ids, grouped correctly', () => {
-    settings['placement_marked_ids'] = ['n5-a', 'n5-b', 'n4-a'];
+  it('shows a reset button only for types with marked ids', () => {
+    settings['placement_marked_kanji_ids'] = ['n5-一', 'n5-学'];
     renderScreen();
-    expect(screen.getByRole('button', { name: /сбросить результаты N5 \(2\)/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /сбросить результаты N4 \(1\)/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /сбросить тест: кандзи \(2\)/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /сбросить тест: грамматика/i })).toBeNull();
   });
 
-  it('resetting a level deletes only that level\'s marked cards and updates the stored id list', () => {
-    settings['placement_marked_ids'] = ['n5-a', 'n5-b', 'n4-a'];
+  it('resetting a type deletes its marked cards and clears its id list', () => {
+    settings['placement_marked_kanji_ids'] = ['n5-一', 'n5-学'];
     renderScreen();
-    fireEvent.click(screen.getByRole('button', { name: /сбросить результаты N5/i }));
-    expect(deleteCard).toHaveBeenCalledWith('grammar', 'n5-a');
-    expect(deleteCard).toHaveBeenCalledWith('grammar', 'n5-b');
-    expect(deleteCard).not.toHaveBeenCalledWith('grammar', 'n4-a');
-    expect(setSetting).toHaveBeenCalledWith('placement_marked_ids', ['n4-a']);
-    // N5's button disappears once its ids are gone; N4's stays.
-    expect(screen.queryByRole('button', { name: /сбросить результаты N5/i })).toBeNull();
-    expect(screen.getByRole('button', { name: /сбросить результаты N4/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /сбросить тест: кандзи/i }));
+    expect(deleteCard).toHaveBeenCalledWith('kanji', 'n5-一');
+    expect(deleteCard).toHaveBeenCalledWith('kanji', 'n5-学');
+    expect(setSetting).toHaveBeenCalledWith('placement_marked_kanji_ids', []);
+    expect(screen.queryByRole('button', { name: /сбросить тест: кандзи/i })).toBeNull();
   });
 
-  it('resetting a level asks for confirmation first, and does nothing if declined', () => {
-    settings['placement_marked_ids'] = ['n5-a'];
+  it('resetting a type asks for confirmation first, and does nothing if declined', () => {
+    settings['placement_marked_vocab_ids'] = ['v1'];
     vi.stubGlobal('confirm', vi.fn(() => false));
     renderScreen();
-    fireEvent.click(screen.getByRole('button', { name: /сбросить результаты N5/i }));
+    fireEvent.click(screen.getByRole('button', { name: /сбросить тест: слова/i }));
     expect(deleteCard).not.toHaveBeenCalled();
   });
 });

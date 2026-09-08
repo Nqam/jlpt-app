@@ -32,8 +32,11 @@ export function TodayScreen() {
         <p className="today-hint">
           Он определит, что вы уже знаете, и пропустит это при изучении.
         </p>
+        <p className="today-hint">
+          Тесты по кандзи и словам — в их разделах или в Настройках.
+        </p>
         <div className="placement-offer-actions">
-          <Link className="btn-primary" to="/placement">
+          <Link className="btn-primary" to="/placement/grammar">
             Пройти
           </Link>
           <button

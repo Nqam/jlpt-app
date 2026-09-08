@@ -47,6 +47,11 @@ export function KanjiListScreen() {
           </button>
         ))}
       </div>
+      {activeLevelObj?.status === 'available' && (
+        <Link className="btn-ghost placement-entry" to="/placement/kanji">
+          Пройти тест по разделу
+        </Link>
+      )}
       <input
         type="search"
         aria-label="Поиск по кандзи"

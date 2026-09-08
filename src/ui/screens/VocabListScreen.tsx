@@ -47,6 +47,11 @@ export function VocabListScreen() {
           </button>
         ))}
       </div>
+      {activeLevelObj?.status === 'available' && (
+        <Link className="btn-ghost placement-entry" to="/placement/vocab">
+          Пройти тест по разделу
+        </Link>
+      )}
       <input
         type="search"
         aria-label="Поиск по слову, чтению или значению"

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserDb } from '@/ui/useUserDb';
-import { useContentDb } from '@/ui/useContentDb';
 import { getPlatformAdapter } from '@/platform';
 import { isNewer } from '@/core/version';
 
@@ -17,14 +16,13 @@ type UpdateState =
 
 export function SettingsScreen() {
   const user = useUserDb();
-  const content = useContentDb();
   const [newPerDay, setNewPerDay] = useState(user.getSetting('new_per_day', 5));
   const [reviewCap, setReviewCap] = useState(user.getSetting('review_queue_cap', 100));
   const [furigana, setFurigana] = useState(user.getSetting('furigana_enabled', true));
   const [status, setStatus] = useState<string | null>(null);
   const [update, setUpdate] = useState<UpdateState>({ kind: 'idle' });
-  // Bumped after a reset so the derived `markedByLevel` below is recomputed --
-  // `user`/`content` are plain object refs, not reactive state.
+  // Bumped after a reset so the derived `markedByType` below is recomputed --
+  // `user` is a plain object ref, not reactive state.
   const [resetTick, setResetTick] = useState(0);
 
   const changeNewPerDay = (raw: string) => {
@@ -90,26 +88,24 @@ export function SettingsScreen() {
     }
   };
 
-  // Which grammar levels have placement-marked cards, and how many per level --
-  // recomputed every render (cheap, small list) so it reflects the latest reset.
-  const markedIds = user.getSetting<string[]>('placement_marked_ids', []);
-  const markedByLevel = new Map<string, string[]>();
-  for (const id of markedIds) {
-    const point = content.getGrammar(id);
-    if (!point) continue;
-    const arr = markedByLevel.get(point.level) ?? [];
-    arr.push(id);
-    markedByLevel.set(point.level, arr);
+  // Per-type placement-marked ids — recomputed every render (cheap, small lists).
+  const TYPES: { type: 'grammar' | 'kanji' | 'vocab'; label: string }[] = [
+    { type: 'grammar', label: 'грамматика' },
+    { type: 'kanji', label: 'кандзи' },
+    { type: 'vocab', label: 'слова' },
+  ];
+  const markedByType = new Map<'grammar' | 'kanji' | 'vocab', string[]>();
+  for (const { type } of TYPES) {
+    markedByType.set(type, user.getSetting<string[]>(`placement_marked_${type}_ids`, []));
   }
   void resetTick; // referenced only to justify the re-render it triggers
 
-  const resetLevel = (levelCode: string) => {
-    const ids = markedByLevel.get(levelCode) ?? [];
+  const resetType = (type: 'grammar' | 'kanji' | 'vocab', label: string) => {
+    const ids = markedByType.get(type) ?? [];
     if (ids.length === 0) return;
-    if (!window.confirm(`Сбросить результаты вступительного теста для ${levelCode}?`)) return;
-    for (const id of ids) user.deleteCard('grammar', id);
-    const remaining = markedIds.filter((id) => !ids.includes(id));
-    user.setSetting('placement_marked_ids', remaining);
+    if (!window.confirm(`Сбросить результаты теста по разделу «${label}»?`)) return;
+    for (const id of ids) user.deleteCard(type, id);
+    user.setSetting(`placement_marked_${type}_ids`, []);
     setResetTick((t) => t + 1);
   };
 
@@ -197,23 +193,25 @@ export function SettingsScreen() {
 
       <div className="settings-placement">
         <h2>Вступительный тест</h2>
-        <Link className="btn-ghost" to="/placement">
-          Пройти вступительный тест заново
-        </Link>
-        {markedByLevel.size > 0 && (
-          <div className="settings-placement-reset">
-            {[...markedByLevel.entries()].map(([levelCode, levelIds]) => (
+        {TYPES.map(({ type, label }) => (
+          <Link key={type} className="btn-ghost" to={`/placement/${type}`}>
+            Тест: {label}
+          </Link>
+        ))}
+        <div className="settings-placement-reset">
+          {TYPES.filter(({ type }) => (markedByType.get(type) ?? []).length > 0).map(
+            ({ type, label }) => (
               <button
-                key={levelCode}
+                key={type}
                 type="button"
                 className="btn-ghost"
-                onClick={() => resetLevel(levelCode)}
+                onClick={() => resetType(type, label)}
               >
-                Сбросить результаты {levelCode} ({levelIds.length})
+                Сбросить тест: {label} ({markedByType.get(type)!.length})
               </button>
-            ))}
-          </div>
-        )}
+            ),
+          )}
+        </div>
       </div>
     </section>
   );

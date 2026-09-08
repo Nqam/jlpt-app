@@ -47,6 +47,11 @@ export function GrammarListScreen() {
           </button>
         ))}
       </div>
+      {activeLevelObj?.status === 'available' && (
+        <Link className="btn-ghost placement-entry" to="/placement/grammar">
+          Пройти тест по разделу
+        </Link>
+      )}
       <input
         type="search"
         aria-label="Поиск по названию"
