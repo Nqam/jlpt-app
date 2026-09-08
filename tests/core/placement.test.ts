@@ -1,153 +1,245 @@
 import { describe, it, expect } from 'vitest';
 import {
+  placementCount,
   initPlacement,
   nextPlacementQuestion,
   applyPlacementAnswer,
   isPlacementDone,
-  placementFrontierIds,
+  placementKnownIds,
   placementQuestionNumber,
-  placementRemaining,
-  type PlacementState,
+  placementTotal,
+  migratePlacementMarks,
 } from '@/core/placement';
-import type { ContentDb, GrammarPointFull } from '@/storage/content-db';
+import type { ContentDb } from '@/storage/content-db';
+import type { UserDb } from '@/storage/user-db';
+import type { CardRow } from '@/storage/user-db';
+import type { ItemType } from '@/core/types';
 
 const ALL = new Set(['N5', 'N4', 'N3', 'N2', 'N1']);
 
 /**
- * `layer: i + 1` makes `availableItemIds`'s (level.ord, layer, id) sort return the
- * ids in exactly the given array order — the same fixture shape session.test.ts
- * already uses for exercising `generateForCard`.
+ * Minimal ContentDb fake. `layer: i + 1` makes availableItemIds' (ord, layer, id)
+ * sort return ids in array order. Kanji/vocab points carry just enough for their
+ * generators (which pad distractors with '—' when the pool is thin).
  */
-function fakeContent(ids: string[]): ContentDb {
-  const points: GrammarPointFull[] = ids.map((id, i) => ({
-    id, level: 'N5', title: id, layer: i + 1, tags: [], related: [], relatedTitles: [],
-    bodyMarkdown: `## Кратко\nОписание пункта ${id} — что он выражает и когда употребляется.`,
-    examples: [
-      { jaRuby: `${id}は 毎日[まいにち] 日本語[にほんご]を 勉強[べんきょう]します。`, ru: `перевод ${id}` },
-    ],
+function fakeContent(opts: {
+  grammar?: string[];
+  kanji?: string[];
+  vocab?: string[];
+}): ContentDb {
+  const grammar = (opts.grammar ?? []).map((id, i) => ({
+    id, level: 'N5', title: 'は', layer: i + 1, tags: [], related: [], relatedTitles: [],
+    bodyMarkdown: '## Кратко\nは выделяет тему предложения и ставится после неё.',
+    examples: [{ jaRuby: 'これは 本[ほん]です。', ru: 'Это книга.' }],
   }));
-  const byId = new Map(points.map((p) => [p.id, p]));
+  const kanji = (opts.kanji ?? []).map((id, i) => ({
+    id, level: 'N5', char: '水', onyomi: ['スイ'], kunyomi: ['みず'], strokeCount: 4,
+    meaningRu: `значение ${i}`,
+  }));
+  const vocab = (opts.vocab ?? []).map((id, i) => ({
+    id, level: 'N5', headword: '水', reading: 'みず', pos: 'сущ.', meaningRu: `слово ${i}`,
+  }));
+  const gById = new Map(grammar.map((p) => [p.id, p]));
+  const kById = new Map(kanji.map((p) => [p.id, p]));
+  const vById = new Map(vocab.map((p) => [p.id, p]));
   return {
     listLevels: () => [{ code: 'N5', status: 'available', ord: 1, titleRu: 'N5' }],
-    listGrammar: () => points.map((p) => ({ id: p.id, level: p.level, title: p.title, layer: p.layer })),
-    getGrammar: (id: string) => byId.get(id) ?? null,
+    listGrammar: () => grammar.map((p) => ({ id: p.id, level: p.level, title: p.title, layer: p.layer })),
+    getGrammar: (id: string) => gById.get(id) ?? null,
+    listKanji: () => kanji,
+    getKanji: (id: string) => kById.get(id) ?? null,
+    listVocab: () => vocab,
+    getVocab: (id: string) => vById.get(id) ?? null,
   } as unknown as ContentDb;
 }
 
-function runToCompletion(
-  content: ContentDb,
-  correctFor: (itemId: string) => boolean,
-): { final: PlacementState; asked: string[] } {
-  let state = initPlacement(content, ALL);
-  const asked: string[] = [];
-  while (!isPlacementDone(state)) {
-    const step = nextPlacementQuestion(state, content, 'test');
-    if (!step) break;
-    asked.push(step.itemId);
-    state = applyPlacementAnswer(state, correctFor(step.itemId));
-  }
-  return { final: state, asked };
+/** UserDb fake: only getCard/getSetting/setSetting. `cards` maps `${type}:${id}` → CardRow. */
+function fakeUser(cards: Record<string, Partial<CardRow>> = {}): UserDb & {
+  _settings: Record<string, unknown>;
+} {
+  const settings: Record<string, unknown> = {};
+  return {
+    _settings: settings,
+    getCard: (type: string, id: string) => (cards[`${type}:${id}`] as CardRow) ?? null,
+    getSetting: <T,>(key: string, fallback: T) => (key in settings ? (settings[key] as T) : fallback),
+    setSetting: (key: string, value: unknown) => { settings[key] = value; },
+  } as unknown as UserDb & { _settings: Record<string, unknown> };
 }
 
-describe('core/placement', () => {
-  const ids = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
-  const bound = (n: number) => Math.ceil(Math.log2(n + 1));
+/** A card row that statusOf() reads as the given status. */
+function cardAt(status: 'new' | 'learning' | 'learned' | 'mastered'): Partial<CardRow> {
+  const stability = { new: 0, learning: 3, learned: 15, mastered: 40 }[status];
+  return { reps: status === 'new' ? 0 : 3, stability };
+}
 
-  it('converges to the full frontier when every answer is correct', () => {
-    const { final } = runToCompletion(fakeContent(ids), () => true);
-    expect(placementFrontierIds(final)).toEqual(ids);
-    expect(final.askedCount).toBeLessThanOrEqual(bound(ids.length));
+describe('placementCount', () => {
+  it('clamps a small percentage up to the floor of min(total, 10)', () => {
+    expect(placementCount(43, 10)).toBe(10); // round(4.3)=4 -> floor 10
+  });
+  it('returns the whole section at 100%', () => {
+    expect(placementCount(43, 100)).toBe(43);
+  });
+  it('caps at 100 for large sections', () => {
+    expect(placementCount(681, 25)).toBe(100); // round(170.25)=170 -> ceil 100
+  });
+  it('collapses to total when total <= 10', () => {
+    expect(placementCount(5, 10)).toBe(5);
+    expect(placementCount(5, 100)).toBe(5);
+  });
+  it('is 0 for an empty section', () => {
+    expect(placementCount(0, 50)).toBe(0);
+  });
+});
+
+describe('initPlacement', () => {
+  const ids = Array.from({ length: 12 }, (_, i) => `g${i}`);
+
+  it('samples exactly placementCount ids', () => {
+    const content = fakeContent({ grammar: ids });
+    const s = initPlacement(content, fakeUser(), 'grammar', ALL, 50, 'seed');
+    expect(s.ids).toHaveLength(placementCount(12, 50)); // round(6)=6
+    expect(new Set(s.ids).size).toBe(s.ids.length); // no duplicates
+    for (const id of s.ids) expect(ids).toContain(id);
   });
 
-  it('converges to an empty frontier when every answer is wrong', () => {
-    const { final } = runToCompletion(fakeContent(ids), () => false);
-    expect(placementFrontierIds(final)).toEqual([]);
-    expect(final.askedCount).toBeLessThanOrEqual(bound(ids.length));
+  it('is deterministic for a given seed and varies by seed', () => {
+    const content = fakeContent({ grammar: ids });
+    const a = initPlacement(content, fakeUser(), 'grammar', ALL, 50, 'seed-A');
+    const b = initPlacement(content, fakeUser(), 'grammar', ALL, 50, 'seed-A');
+    const c = initPlacement(content, fakeUser(), 'grammar', ALL, 50, 'seed-B');
+    expect(a.ids).toEqual(b.ids);
+    expect(a.ids).not.toEqual(c.ids);
   });
 
-  it('converges to a hand-traced middle boundary with mixed answers', () => {
-    // Oracle: the first 3 ids (by canonical order) are "known". Hand trace for
-    // ids.length=8, lo=0,hi=8:
-    //   idx=4 -> p5 (index 4, not < 3) -> wrong -> hi=4
-    //   idx=2 -> p3 (index 2, < 3)     -> correct -> lo=3
-    //   idx=3 -> p4 (index 3, not < 3) -> wrong -> hi=3
-    //   lo=3, hi=3 -> done. frontier = ids[0..3) = ['p1','p2','p3']. 3 questions.
-    const { final, asked } = runToCompletion(fakeContent(ids), (id) => ids.indexOf(id) < 3);
-    expect(placementFrontierIds(final)).toEqual(['p1', 'p2', 'p3']);
-    expect(final.askedCount).toBe(3);
-    expect(asked).toEqual(['p5', 'p3', 'p4']);
+  it('orders not-yet-passed ids before passed ones', () => {
+    const content = fakeContent({ grammar: ids });
+    // g0..g5 have a learning+ card (passed); g6..g11 have none (not passed).
+    const cards: Record<string, Partial<CardRow>> = {};
+    for (let i = 0; i < 6; i++) cards[`grammar:g${i}`] = cardAt('learning');
+    const s = initPlacement(content, fakeUser(cards), 'grammar', ALL, 100, 'seed');
+    expect(s.ids).toHaveLength(12);
+    const firstSix = new Set(s.ids.slice(0, 6));
+    const lastSix = new Set(s.ids.slice(6));
+    for (const id of firstSix) expect(Number(id.slice(1))).toBeGreaterThanOrEqual(6); // not passed
+    for (const id of lastSix) expect(Number(id.slice(1))).toBeLessThan(6);            // passed
   });
 
-  it('never asks about the same grammar point twice', () => {
-    const bigIds = Array.from({ length: 93 }, (_, i) => `g${i}`);
-    const { asked } = runToCompletion(fakeContent(bigIds), (id) => bigIds.indexOf(id) % 2 === 0);
-    expect(new Set(asked).size).toBe(asked.length);
+  it('treats a card in status "new" (reps 0) as not-yet-passed', () => {
+    const content = fakeContent({ grammar: ['g0', 'g1'] });
+    const cards = { 'grammar:g0': cardAt('new') };
+    const s = initPlacement(content, fakeUser(cards), 'grammar', ALL, 100, 'seed');
+    // both are "not passed" -> both eligible; nothing forced to the tail
+    expect(new Set(s.ids)).toEqual(new Set(['g0', 'g1']));
   });
 
-  it('terminates within ceil(log2(N+1)) questions for a larger corpus', () => {
-    const bigIds = Array.from({ length: 93 }, (_, i) => `g${i}`);
-    const { final } = runToCompletion(fakeContent(bigIds), (id) => bigIds.indexOf(id) % 2 === 0);
-    expect(final.askedCount).toBeLessThanOrEqual(bound(bigIds.length));
+  it('carries the itemType through and starts at index 0 with no correct ids', () => {
+    const content = fakeContent({ kanji: ['k0', 'k1'] });
+    const s = initPlacement(content, fakeUser(), 'kanji', ALL, 100, 'seed');
+    expect(s.itemType).toBe('kanji');
+    expect(s.index).toBe(0);
+    expect(s.correctIds).toEqual([]);
   });
 
-  it('a wrong answer counts immediately: the failed item is not in the frontier and is not re-asked', () => {
-    const content = fakeContent(ids);
-    let state = initPlacement(content, ALL); // lo=0, hi=8
-    const first = nextPlacementQuestion(state, content, 'test')!;
-    expect(first.itemId).toBe('p5'); // idx 4
-    state = applyPlacementAnswer(state, false); // wrong -> hi = 4, no second try
-    expect(state.hi).toBe(4);
-    expect(state.lo).toBe(0);
-    const second = nextPlacementQuestion(state, content, 'test')!;
-    expect(second.itemId).not.toBe(first.itemId);
-    expect(placementFrontierIds(state)).not.toContain('p5');
+  it('returns an empty sample and is immediately done when the pool is empty', () => {
+    const content = fakeContent({ grammar: [] });
+    const s = initPlacement(content, fakeUser(), 'grammar', ALL, 50, 'seed');
+    expect(s.ids).toEqual([]);
+    expect(isPlacementDone(s)).toBe(true);
+  });
+});
+
+describe('nextPlacementQuestion', () => {
+  it('uses the grammar generator for a grammar test', () => {
+    const content = fakeContent({ grammar: ['g0', 'g1'] });
+    const s = initPlacement(content, fakeUser(), 'grammar', ALL, 100, 'seed');
+    const step = nextPlacementQuestion(s, content, 'seed')!;
+    expect(step.itemId).toBe(s.ids[0]);
+    expect(step.question.itemType).toBe('grammar');
   });
 
-  it('a single correct answer advances the frontier by one (no confirmation step)', () => {
-    const content = fakeContent(ids);
-    let state = initPlacement(content, ALL); // lo=0, hi=8, idx 4
-    state = applyPlacementAnswer(state, true);
-    expect(state.lo).toBe(5);
-    expect(state.hi).toBe(8);
+  it('uses the kanji generator for a kanji test', () => {
+    const content = fakeContent({ kanji: ['k0', 'k1', 'k2'] });
+    const s = initPlacement(content, fakeUser(), 'kanji', ALL, 100, 'seed');
+    const step = nextPlacementQuestion(s, content, 'seed')!;
+    expect(step.question.itemType).toBe('kanji');
   });
 
-  it('nextPlacementQuestion returns null once the test is done', () => {
-    const content = fakeContent(ids);
-    const { final } = runToCompletion(content, () => true);
-    expect(isPlacementDone(final)).toBe(true);
-    expect(nextPlacementQuestion(final, content, 'test')).toBeNull();
+  it('uses the vocab generator for a vocab test', () => {
+    const content = fakeContent({ vocab: ['v0', 'v1', 'v2'] });
+    const s = initPlacement(content, fakeUser(), 'vocab', ALL, 100, 'seed');
+    const step = nextPlacementQuestion(s, content, 'seed')!;
+    expect(step.question.itemType).toBe('vocab');
   });
 
-  it('generates a real grammar question via generateForCard', () => {
-    const content = fakeContent(ids);
-    const state = initPlacement(content, ALL);
-    const step = nextPlacementQuestion(state, content, 'test');
-    expect(step).not.toBeNull();
-    expect(step!.question.itemType).toBe('grammar');
-    expect(['cloze', 'choice', 'assemble']).toContain(step!.question.kind);
-    expect(step!.itemId).toBe(ids[Math.floor(ids.length / 2)]);
+  it('is deterministic for a given seed', () => {
+    const content = fakeContent({ grammar: ['g0', 'g1'] });
+    const s = initPlacement(content, fakeUser(), 'grammar', ALL, 100, 'seed');
+    const a = nextPlacementQuestion(s, content, 'seed')!;
+    const b = nextPlacementQuestion(s, content, 'seed')!;
+    expect(a.question.id).toBe(b.question.id);
   });
 
-  it('question number is 1-based and remaining shrinks with each answer', () => {
-    const content = fakeContent(ids); // 8 points -> range [0,8), remaining = ceil(log2(9)) = 4
-    let state = initPlacement(content, ALL);
-    expect(placementQuestionNumber(state)).toBe(1);
-    expect(placementRemaining(state)).toBe(4);
-    state = applyPlacementAnswer(state, true); // [5,8) -> ceil(log2(4)) = 2
-    expect(placementQuestionNumber(state)).toBe(2);
-    expect(placementRemaining(state)).toBe(2);
-    state = applyPlacementAnswer(state, false); // [5,6) -> ceil(log2(2)) = 1
-    expect(placementRemaining(state)).toBe(1);
-    state = applyPlacementAnswer(state, true); // [6,6) done
-    expect(isPlacementDone(state)).toBe(true);
-    expect(placementRemaining(state)).toBe(0);
+  it('returns null once the cursor passes the end', () => {
+    const content = fakeContent({ grammar: ['g0'] });
+    let s = initPlacement(content, fakeUser(), 'grammar', ALL, 100, 'seed');
+    s = applyPlacementAnswer(s, true);
+    expect(isPlacementDone(s)).toBe(true);
+    expect(nextPlacementQuestion(s, content, 'seed')).toBeNull();
   });
 
-  it('is immediately done with an empty frontier when no grammar is available', () => {
-    const content = fakeContent([]);
-    const state = initPlacement(content, ALL);
-    expect(isPlacementDone(state)).toBe(true);
-    expect(nextPlacementQuestion(state, content, 'test')).toBeNull();
-    expect(placementFrontierIds(state)).toEqual([]);
+  it('returns null when the current id does not resolve to content', () => {
+    const content = fakeContent({ grammar: ['g0'] });
+    const s = { itemType: 'grammar' as ItemType, ids: ['ghost'], index: 0, correctIds: [] };
+    expect(nextPlacementQuestion(s, content, 'seed')).toBeNull();
+  });
+});
+
+describe('applyPlacementAnswer / placementKnownIds / counters', () => {
+  it('advances the cursor and records only correct ids', () => {
+    const content = fakeContent({ grammar: ['g0', 'g1', 'g2'] });
+    let s = initPlacement(content, fakeUser(), 'grammar', ALL, 100, 'seed');
+    const asked: string[] = [];
+    asked.push(s.ids[s.index]!);
+    s = applyPlacementAnswer(s, true);
+    asked.push(s.ids[s.index]!);
+    s = applyPlacementAnswer(s, false);
+    asked.push(s.ids[s.index]!);
+    s = applyPlacementAnswer(s, true);
+    expect(isPlacementDone(s)).toBe(true);
+    expect(placementKnownIds(s)).toEqual([asked[0], asked[2]]);
+  });
+
+  it('reports a 1-based question number and a fixed total', () => {
+    const content = fakeContent({ grammar: ['g0', 'g1', 'g2', 'g3'] });
+    let s = initPlacement(content, fakeUser(), 'grammar', ALL, 100, 'seed');
+    expect(placementTotal(s)).toBe(4);
+    expect(placementQuestionNumber(s)).toBe(1);
+    s = applyPlacementAnswer(s, true);
+    expect(placementQuestionNumber(s)).toBe(2);
+    expect(placementTotal(s)).toBe(4);
+  });
+});
+
+describe('migratePlacementMarks', () => {
+  it('copies the old grammar-only key into the per-type grammar key, once', () => {
+    const user = fakeUser();
+    user._settings['placement_marked_ids'] = ['g1', 'g2'];
+    migratePlacementMarks(user);
+    expect(user._settings['placement_marked_grammar_ids']).toEqual(['g1', 'g2']);
+  });
+
+  it('is idempotent — a second call does not double or clobber', () => {
+    const user = fakeUser();
+    user._settings['placement_marked_ids'] = ['g1'];
+    migratePlacementMarks(user);
+    user._settings['placement_marked_grammar_ids'] = ['g1', 'earned-later'];
+    migratePlacementMarks(user); // must not overwrite the now-populated key
+    expect(user._settings['placement_marked_grammar_ids']).toEqual(['g1', 'earned-later']);
+  });
+
+  it('does nothing when there is no old key', () => {
+    const user = fakeUser();
+    migratePlacementMarks(user);
+    expect(user._settings['placement_marked_grammar_ids']).toBeUndefined();
   });
 });
