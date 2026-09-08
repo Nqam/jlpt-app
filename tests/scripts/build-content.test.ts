@@ -40,6 +40,7 @@ const opts = {
   kanjiDir: resolve(__dirname, '../../content/kanji'),
   vocabDir: resolve(__dirname, '../../content/vocab'),
   textsDir: resolve(__dirname, '../../content/texts'),
+  lessonsDir: resolve(__dirname, '../../content/lessons'),
 };
 
 describe('buildContentDb', () => {
@@ -214,6 +215,48 @@ describe('buildContentDb', () => {
       SELECT count(*) FROM text_questions q
       LEFT JOIN texts t ON t.id = q.text_id
       WHERE t.id IS NULL
+    `)[0]!.values[0]![0];
+    expect(orphans).toBe(0);
+
+    db.close();
+  });
+
+  it('produces 15 lessons migrated from texts, ordered by stage, with empty introduces/markers', async () => {
+    const bytes = buildContentDb(opts);
+    const SQL = await initSqlJs({
+      locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
+    });
+    const db = new SQL.Database(bytes);
+
+    const count = db.exec('SELECT count(*) FROM lessons')[0]!.values[0]![0];
+    expect(count).toBe(15);
+
+    const stages = db.exec('SELECT stage FROM lessons ORDER BY stage')[0]!.values.map((r) => r[0]);
+    expect(stages).toEqual([2, 4, 6, 8, 10, 12, 14, 16, 18, 42, 44, 46, 48, 50, 52]);
+
+    const row = db.exec(
+      "SELECT stage, kind, title, body_ruby FROM lessons WHERE id = 'n5-hanami'",
+    )[0]!.values[0]!;
+    expect(row[0]).toBe(2);
+    expect(row[1]).toBe('text');
+    expect(row[2]).toBe('お花見');
+    expect(String(row[3])).toContain('桜');
+
+    const qCount = db.exec(
+      "SELECT count(*) FROM lesson_questions WHERE lesson_id = 'n5-hanami'",
+    )[0]!.values[0]![0];
+    expect(qCount).toBe(4);
+
+    // 15 мигрированных текстов — свободное чтение: ни introduces, ни маркеров
+    const introduces = db.exec('SELECT count(*) FROM lesson_introduces')[0]!.values[0]![0];
+    expect(introduces).toBe(0);
+    const markers = db.exec('SELECT count(*) FROM lesson_markers')[0]!.values[0]![0];
+    expect(markers).toBe(0);
+
+    const orphans = db.exec(`
+      SELECT count(*) FROM lesson_questions q
+      LEFT JOIN lessons l ON l.id = q.lesson_id
+      WHERE l.id IS NULL
     `)[0]!.values[0]![0];
     expect(orphans).toBe(0);
 

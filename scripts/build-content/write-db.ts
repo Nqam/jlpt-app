@@ -1,12 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import initSqlJsFactory from 'sql.js';
-import type { SqlJsStatic } from 'sql.js';
+import type { SqlJsStatic, Database } from 'sql.js';
 import { loadAllGrammar, validateGrammar } from './parse-grammar';
 import { loadLevels } from './lists';
 import { loadAllKanji, validateKanji } from './kanji';
 import { loadAllVocab, validateVocab } from './vocab';
 import { loadAllTexts, validateTexts } from './parse-texts';
+import { loadAllLessons, validateLessons, validateLessonRefs } from './lessons';
+import type { ParsedLesson } from './lessons';
 
 export interface BuildOpts {
   grammarDir: string;
@@ -15,6 +17,7 @@ export interface BuildOpts {
   kanjiDir: string;
   vocabDir: string;
   textsDir: string;
+  lessonsDir: string;
   /** По умолчанию — фиксированное значение, чтобы сборка была детерминированной в тестах. */
   contentVersion?: string;
 }
@@ -128,6 +131,18 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
   insT.free();
   insTQ.free();
 
+  const lessons = loadAllLessons(opts.lessonsDir).sort((a, b) => a.id.localeCompare(b.id));
+  const lessonErrors = validateLessons(lessons);
+  if (lessonErrors.length) throw new Error(`lessons validation failed:\n${lessonErrors.join('\n')}`);
+  const refSets = {
+    grammar: ids,
+    kanji: new Set(kanji.map((k) => k.id)),
+    vocab: new Set(vocab.map((v) => v.id)),
+  };
+  const refErrors = validateLessonRefs(lessons, refSets);
+  if (refErrors.length) throw new Error(`lesson refs validation failed:\n${refErrors.join('\n')}`);
+  insertLessons(db, lessons, refSets);
+
   db.run("INSERT INTO meta (key, value) VALUES ('content_version', ?)", [
     opts.contentVersion ?? '0.1.0',
   ]);
@@ -136,4 +151,45 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
   const bytes = db.export();
   db.close();
   return bytes;
+}
+
+export function insertLessons(
+  db: Database,
+  lessons: ParsedLesson[],
+  sets: { grammar: Set<string>; kanji: Set<string>; vocab: Set<string> },
+): void {
+  const setFor = (t: 'grammar' | 'kanji' | 'vocab'): Set<string> =>
+    t === 'grammar' ? sets.grammar : t === 'kanji' ? sets.kanji : sets.vocab;
+
+  const insL = db.prepare(
+    'INSERT INTO lessons (id, stage, kind, title, body_ruby, translation_ru) VALUES (?,?,?,?,?,?)',
+  );
+  const insLQ = db.prepare(
+    'INSERT INTO lesson_questions (lesson_id, ord, prompt, choices_json, answer_index) VALUES (?,?,?,?,?)',
+  );
+  const insLI = db.prepare(
+    'INSERT INTO lesson_introduces (lesson_id, item_type, item_id, role, ord) VALUES (?,?,?,?,?)',
+  );
+  const insLM = db.prepare(
+    'INSERT INTO lesson_markers (lesson_id, item_type, item_id, surface, sentence_ruby, sentence_ru) VALUES (?,?,?,?,?,?)',
+  );
+  for (const l of lessons) {
+    insL.run([l.id, l.stage, l.kind, l.title, l.bodyRuby, l.translationRu]);
+    l.questions.forEach((q, i) =>
+      insLQ.run([l.id, i, q.prompt, JSON.stringify(q.choices), q.answerIndex]),
+    );
+    let ord = 0;
+    for (const it of l.introduces) insLI.run([l.id, it.type, it.id, 'introduce', ord++]);
+    for (const rid of l.reviews) {
+      const type = (['grammar', 'kanji', 'vocab'] as const).find((t) => setFor(t).has(rid))!;
+      insLI.run([l.id, type, rid, 'review', ord++]);
+    }
+    for (const mk of l.markers) {
+      insLM.run([l.id, mk.type, mk.id, mk.surface, mk.sentenceRuby, mk.sentenceRu]);
+    }
+  }
+  insL.free();
+  insLQ.free();
+  insLI.free();
+  insLM.free();
 }
