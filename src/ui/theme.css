@@ -129,6 +129,8 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .ribbon { display: flex; gap: 6px; margin-bottom: 0.5rem; }
 .ribbon-seg { flex: 1; display: flex; flex-direction: column; gap: 4px; opacity: 1; }
 .ribbon-seg.coming_soon { opacity: 0.45; }
+.ribbon-seg.locked { opacity: 0.55; }
+.ribbon-seg.locked .ribbon-code::after { content: ' 🔒'; font-size: 0.8em; }
 .ribbon-code { font-size: 0.8rem; color: var(--muted); text-align: center; }
 .ribbon-track { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
 .ribbon-fill { height: 100%; background: var(--accent); }

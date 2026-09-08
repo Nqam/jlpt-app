@@ -15,6 +15,17 @@ vi.mock('@/ui/useUserDb', () => ({
   useUserDb: () => ({ getSetting: () => readIds.value }),
 }));
 
+type EffLevel = { code: string; ord: number; titleRu: string; status: string; rawStatus: string };
+const defaultEff: EffLevel[] = [
+  { code: 'N5', ord: 1, titleRu: 'N5', status: 'available', rawStatus: 'available' },
+  { code: 'N4', ord: 2, titleRu: 'N4', status: 'coming_soon', rawStatus: 'coming_soon' },
+];
+const effLevels: { value: EffLevel[] } = { value: defaultEff };
+vi.mock('@/ui/useContentDb', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/ui/useContentDb')>()),
+  useEffectiveLevels: () => effLevels.value,
+}));
+
 import { TextsListScreen } from '@/ui/screens/TextsListScreen';
 import type { TextPoint, Level } from '@/core/types';
 
@@ -41,6 +52,7 @@ function renderScreen() {
 describe('TextsListScreen', () => {
   beforeEach(() => {
     readIds.value = [];
+    effLevels.value = defaultEff;
   });
 
   it('shows N5 texts by default', () => {
@@ -53,7 +65,17 @@ describe('TextsListScreen', () => {
   it('marks a coming-soon level as empty', () => {
     const { getByRole, getByText } = renderScreen();
     fireEvent.click(getByRole('tab', { name: /N4/ }));
-    expect(getByText(/скоро/i)).toBeInTheDocument();
+    expect(getByText(/появится позже/i)).toBeInTheDocument();
+  });
+
+  it('treats a locked level the same as coming_soon', () => {
+    effLevels.value = [
+      defaultEff[0]!,
+      { code: 'N4', ord: 2, titleRu: 'N4', status: 'locked', rawStatus: 'available' },
+    ];
+    const { getByRole, getByText } = renderScreen();
+    fireEvent.click(getByRole('tab', { name: /N4/ }));
+    expect(getByText(/появится позже/i)).toBeInTheDocument();
   });
 
   it('shows no read badge for an unread text', () => {

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useContentDb, useLevels } from '../useContentDb';
+import { useContentDb, useEffectiveLevels } from '../useContentDb';
 import { LevelBadge } from '../components/LevelBadge';
 
 export function GrammarListScreen() {
   const db = useContentDb();
-  const levels = useLevels();
+  const levels = useEffectiveLevels();
   const [activeLevel, setActiveLevel] = useState(levels[0]?.code ?? '');
   const [query, setQuery] = useState('');
 
@@ -45,6 +45,10 @@ export function GrammarListScreen() {
       />
       {!query && activeLevelObj?.status === 'coming_soon' ? (
         <p className="muted">Материал уровня {activeLevel} появится скоро.</p>
+      ) : !query && activeLevelObj?.status === 'locked' ? (
+        <p className="muted">
+          Уровень {activeLevel} откроется после 90% завершения предыдущего уровня.
+        </p>
       ) : points.length === 0 ? (
         <p className="muted">Ничего не найдено.</p>
       ) : (

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useContentDb, useLevels } from '../useContentDb';
+import { useContentDb, useEffectiveLevels } from '../useContentDb';
 import { useUserDb } from '../useUserDb';
 
 export function TextsListScreen() {
   const db = useContentDb();
-  const levels = useLevels();
+  const levels = useEffectiveLevels();
   const user = useUserDb();
   const [activeLevel, setActiveLevel] = useState(levels[0]?.code ?? '');
 
@@ -30,8 +30,8 @@ export function TextsListScreen() {
           </button>
         ))}
       </div>
-      {activeLevelObj?.status === 'coming_soon' ? (
-        <p className="muted">Материал уровня {activeLevel} появится скоро.</p>
+      {activeLevelObj?.status === 'coming_soon' || activeLevelObj?.status === 'locked' ? (
+        <p className="muted">Материал уровня {activeLevel} появится позже.</p>
       ) : points.length === 0 ? (
         <p className="muted">Текстов пока нет.</p>
       ) : (

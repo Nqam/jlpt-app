@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { MemoryRouter as BaseMemoryRouter } from 'react-router-dom';
 import type { ComponentProps } from 'react';
@@ -17,6 +17,21 @@ const levels: Level[] = [
   { code: 'N4', ord: 2, status: 'available', titleRu: 'N4' },
   { code: 'N3', ord: 3, status: 'coming_soon', titleRu: 'N3' },
 ];
+
+type EffLevel = { code: string; ord: number; titleRu: string; status: string; rawStatus: string };
+const defaultEff: EffLevel[] = [
+  { code: 'N5', ord: 1, titleRu: 'N5', status: 'available', rawStatus: 'available' },
+  { code: 'N4', ord: 2, titleRu: 'N4', status: 'available', rawStatus: 'available' },
+  { code: 'N3', ord: 3, titleRu: 'N3', status: 'coming_soon', rawStatus: 'coming_soon' },
+];
+const effLevels: { value: EffLevel[] } = { value: defaultEff };
+vi.mock('@/ui/useContentDb', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/ui/useContentDb')>()),
+  useEffectiveLevels: () => effLevels.value,
+}));
+beforeEach(() => {
+  effLevels.value = defaultEff;
+});
 const n5: GrammarPoint[] = [
   { id: 'n5-wa-particle', level: 'N5', title: 'は (тема предложения)', layer: 1, tags: [], related: [], bodyMarkdown: '', examples: [] },
   { id: 'n5-mo-particle', level: 'N5', title: 'も (тоже)', layer: 2, tags: [], related: [], bodyMarkdown: '', examples: [] },
@@ -54,5 +69,15 @@ describe('GrammarListScreen', () => {
     const input = getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'тоже' } });
     expect(queryByText('は (тема предложения)')).toBeNull();
+  });
+
+  it('shows the unlock hint (not the list) for a locked active level', () => {
+    effLevels.value = [
+      { code: 'N5', ord: 1, titleRu: 'N5', status: 'locked', rawStatus: 'available' },
+      ...defaultEff.slice(1),
+    ];
+    const { getByText, queryByRole } = renderScreen();
+    expect(getByText(/откроется после 90% завершения/i)).toBeInTheDocument();
+    expect(queryByRole('listitem')).toBeNull();
   });
 });

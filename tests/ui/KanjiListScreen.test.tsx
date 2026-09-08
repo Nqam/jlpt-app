@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { MemoryRouter as BaseMemoryRouter } from 'react-router-dom';
 import type { ComponentProps } from 'react';
@@ -16,6 +16,20 @@ const levels: Level[] = [
   { code: 'N5', ord: 1, status: 'available', titleRu: 'N5' },
   { code: 'N4', ord: 2, status: 'coming_soon', titleRu: 'N4' },
 ];
+
+type EffLevel = { code: string; ord: number; titleRu: string; status: string; rawStatus: string };
+const defaultEff: EffLevel[] = [
+  { code: 'N5', ord: 1, titleRu: 'N5', status: 'available', rawStatus: 'available' },
+  { code: 'N4', ord: 2, titleRu: 'N4', status: 'coming_soon', rawStatus: 'coming_soon' },
+];
+const effLevels: { value: EffLevel[] } = { value: defaultEff };
+vi.mock('@/ui/useContentDb', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/ui/useContentDb')>()),
+  useEffectiveLevels: () => effLevels.value,
+}));
+beforeEach(() => {
+  effLevels.value = defaultEff;
+});
 const n5: KanjiPoint[] = [
   { id: 'n5-一', level: 'N5', char: '一', onyomi: ['イチ'], kunyomi: ['ひと.つ'], strokeCount: 1, meaningRu: 'один' },
   { id: 'n5-学', level: 'N5', char: '学', onyomi: ['ガク'], kunyomi: ['まな.ぶ'], strokeCount: 8, meaningRu: 'учиться' },
@@ -57,6 +71,16 @@ describe('KanjiListScreen', () => {
     fireEvent.change(input, { target: { value: 'учиться' } });
     expect(queryByText('один')).toBeNull();
     expect(queryByText('учиться')).toBeInTheDocument();
+  });
+
+  it('shows the unlock hint (not the list) for a locked active level', () => {
+    effLevels.value = [
+      { code: 'N5', ord: 1, titleRu: 'N5', status: 'locked', rawStatus: 'available' },
+      ...defaultEff.slice(1),
+    ];
+    const { getByText, queryByRole } = renderScreen();
+    expect(getByText(/откроется после 90% завершения/i)).toBeInTheDocument();
+    expect(queryByRole('listitem')).toBeNull();
   });
 
   it('shows a level badge only on search results, not on browsed-by-tab items', () => {
