@@ -248,6 +248,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .placement-counter { color: var(--muted); font-size: 0.85rem; margin: 0 0 1rem; }
 
 .placement-offer-actions { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1rem; }
+.placement-volume-buttons { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
 
 .settings-placement { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .settings-placement-reset { margin-top: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }

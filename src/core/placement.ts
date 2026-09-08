@@ -124,13 +124,16 @@ export function placementKnownIds(s: PlacementState): string[] {
 
 /**
  * One-time migration of the plan-4e grammar-only `placement_marked_ids` key into
- * the per-type `placement_marked_grammar_ids` key. Idempotent: does nothing once
- * the per-type key is non-empty (whether from a prior migration or a real
- * grammar retake under the new code) and nothing when there is no old key.
+ * the per-type `placement_marked_grammar_ids` key. Copies once (only when the
+ * per-type key is still empty — a prior migration or a real grammar retake under
+ * the new code leaves it populated), then clears the legacy key so it never
+ * re-fires. Does nothing when there is no old key.
  */
 export function migratePlacementMarks(user: UserDb): void {
   const old = user.getSetting<string[]>('placement_marked_ids', []);
   if (old.length === 0) return;
-  if (user.getSetting<string[]>('placement_marked_grammar_ids', []).length > 0) return;
-  user.setSetting('placement_marked_grammar_ids', old);
+  if (user.getSetting<string[]>('placement_marked_grammar_ids', []).length === 0) {
+    user.setSetting('placement_marked_grammar_ids', old);
+  }
+  user.setSetting('placement_marked_ids', []); // consume it — migration is one-way
 }

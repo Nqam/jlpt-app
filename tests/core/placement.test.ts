@@ -221,11 +221,12 @@ describe('applyPlacementAnswer / placementKnownIds / counters', () => {
 });
 
 describe('migratePlacementMarks', () => {
-  it('copies the old grammar-only key into the per-type grammar key, once', () => {
+  it('copies the old grammar-only key into the per-type grammar key, then consumes the legacy key', () => {
     const user = fakeUser();
     user._settings['placement_marked_ids'] = ['g1', 'g2'];
     migratePlacementMarks(user);
     expect(user._settings['placement_marked_grammar_ids']).toEqual(['g1', 'g2']);
+    expect(user._settings['placement_marked_ids']).toHaveLength(0);
   });
 
   it('is idempotent — a second call does not double or clobber', () => {
@@ -233,8 +234,17 @@ describe('migratePlacementMarks', () => {
     user._settings['placement_marked_ids'] = ['g1'];
     migratePlacementMarks(user);
     user._settings['placement_marked_grammar_ids'] = ['g1', 'earned-later'];
-    migratePlacementMarks(user); // must not overwrite the now-populated key
+    migratePlacementMarks(user); // legacy key already [] -> must not overwrite the populated key
     expect(user._settings['placement_marked_grammar_ids']).toEqual(['g1', 'earned-later']);
+  });
+
+  it('does not resurrect marks after a Settings reset empties the per-type key', () => {
+    const user = fakeUser();
+    user._settings['placement_marked_ids'] = ['g1'];
+    migratePlacementMarks(user); // consumes the legacy key
+    user._settings['placement_marked_grammar_ids'] = []; // simulate a Settings "reset grammar"
+    migratePlacementMarks(user);
+    expect(user._settings['placement_marked_grammar_ids']).toEqual([]);
   });
 
   it('does nothing when there is no old key', () => {

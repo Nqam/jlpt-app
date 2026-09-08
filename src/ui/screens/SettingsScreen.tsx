@@ -198,20 +198,22 @@ export function SettingsScreen() {
             Тест: {label}
           </Link>
         ))}
-        <div className="settings-placement-reset">
-          {TYPES.filter(({ type }) => (markedByType.get(type) ?? []).length > 0).map(
-            ({ type, label }) => (
-              <button
-                key={type}
-                type="button"
-                className="btn-ghost"
-                onClick={() => resetType(type, label)}
-              >
-                Сбросить тест: {label} ({markedByType.get(type)!.length})
-              </button>
-            ),
-          )}
-        </div>
+        {TYPES.some(({ type }) => (markedByType.get(type) ?? []).length > 0) && (
+          <div className="settings-placement-reset">
+            {TYPES.filter(({ type }) => (markedByType.get(type) ?? []).length > 0).map(
+              ({ type, label }) => (
+                <button
+                  key={type}
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => resetType(type, label)}
+                >
+                  Сбросить тест: {label} ({markedByType.get(type)!.length})
+                </button>
+              ),
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

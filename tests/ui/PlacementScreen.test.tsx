@@ -145,6 +145,25 @@ describe('PlacementScreen', () => {
     expect(upsertCard).toHaveBeenCalledTimes(1);
   });
 
+  it('one-ways placement_offered even when the test marks zero cards', () => {
+    known.value = ['p1'];
+    getCard.mockImplementation((_t: string, id: string) => ({ item_id: id })); // every id already has a card
+    renderAt('/placement/grammar');
+    fireEvent.click(screen.getByRole('button', { name: /10\s*%/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'A' }));
+    fireEvent.click(screen.getByRole('button', { name: /далее/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'A' }));
+    fireEvent.click(screen.getByRole('button', { name: /далее/i }));
+
+    expect(screen.getByText(/Отмечено как уже известные: 0/)).toBeInTheDocument();
+    expect(upsertCard).not.toHaveBeenCalled();
+    expect(setSetting).toHaveBeenCalledWith('placement_offered', true);
+    expect(setSetting).not.toHaveBeenCalledWith(
+      expect.stringMatching(/^placement_marked_.*_ids$/),
+      expect.anything(),
+    );
+  });
+
   it('redirects an unknown :type to the grammar volume screen', () => {
     renderAt('/placement/bogus');
     // grammar volume screen still renders its buttons (no crash, no blank)
