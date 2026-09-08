@@ -341,3 +341,8 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .dialogue-speaker { font-weight: 700; color: var(--muted); flex: none; }
 .dialogue-text { overflow-wrap: anywhere; }
 .comprehension-q .q-prompt { font-weight: 500; }
+.reinforce { display: flex; flex-direction: column; gap: 1rem; }
+.reinforce-context {
+  font-family: var(--font-ja); color: var(--muted); font-size: 0.95rem;
+  border-left: 3px solid var(--border); padding-left: 0.75rem; margin: 0;
+}
