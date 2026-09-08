@@ -8,7 +8,7 @@ import { test, expect, _electron as electron } from '@playwright/test';
  * Пропускается, если сборка не собрана (`npm run build:desktop`), чтобы CI
  * без упаковки оставался зелёным.
  */
-const exePath = join(process.cwd(), 'dist', 'win-unpacked', 'JLPT.exe');
+const exePath = join(process.cwd(), 'dist', 'win-unpacked', 'Kotsukotsu.exe');
 const built = existsSync(exePath);
 
 test.describe('packaged app (dist/win-unpacked)', () => {

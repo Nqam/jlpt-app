@@ -6,7 +6,7 @@
     </linearGradient>
   </defs>
   <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bg)"/>
-  <text x="256" y="378" text-anchor="middle"
+  <text x="256" y="392" text-anchor="middle"
         font-family="'Yu Gothic','Noto Sans JP','Meiryo',sans-serif"
-        font-size="340" font-weight="700" fill="#faf8f4">日</text>
+        font-size="360" font-weight="700" fill="#faf8f4">こ</text>
 </svg>

@@ -80,7 +80,7 @@ export function SettingsScreen() {
       if (!bytes) return;
       const valid = await user.validateImportBytes(bytes);
       if (!valid) {
-        setStatus('Файл повреждён или не является резервной копией JLPT.');
+        setStatus('Файл повреждён или не является резервной копией Kotsukotsu.');
         return;
       }
       await getPlatformAdapter().writeUserDb(bytes);

@@ -32,9 +32,9 @@ describe('build/icon.ico', () => {
     expect(sizes.has(256)).toBe(true); // крупный для проводника / Alt+Tab
   });
 
-  it('has a source SVG that draws the 日 glyph on the project accent colour', () => {
+  it('has a source SVG that draws the こ glyph on the project accent colour', () => {
     const svg = readFileSync(SVG, 'utf8');
-    expect(svg).toContain('日');
+    expect(svg).toContain('こ'); // от «こつこつ»
     expect(svg).toMatch(/rx="\d+"/); // скруглённый квадрат-подложка
   });
 });

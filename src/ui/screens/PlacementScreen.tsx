@@ -8,6 +8,8 @@ import {
   applyPlacementAnswer,
   isPlacementDone,
   placementFrontierIds,
+  placementQuestionNumber,
+  placementRemaining,
   type PlacementState,
 } from '@/core/placement';
 import { availableLevelCodes } from '@/core/levels';
@@ -97,8 +99,14 @@ export function PlacementScreen() {
 
   if (!current) return null;
 
+  const remaining = placementRemaining(state);
+
   return (
     <section className="screen placement">
+      <p className="placement-counter">
+        Вопрос {placementQuestionNumber(state)}
+        {remaining > 1 && <> · осталось ещё ~{remaining}</>}
+      </p>
       <QuestionView
         key={current.question.id}
         question={current.question}

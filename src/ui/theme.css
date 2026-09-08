@@ -52,7 +52,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .app-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .app-header { display: flex; align-items: center; justify-content: space-between;
   padding: 12px 20px; border-bottom: 1px solid var(--border); }
-.app-brand { font-weight: 700; letter-spacing: 0.08em; }
+.app-brand { font-family: var(--font-ja); font-weight: 700; letter-spacing: 0.12em; color: var(--accent); }
 .screen { padding: 20px; max-width: 780px; }
 .muted, .loading, .fatal { color: var(--muted); }
 .fatal { padding: 24px; color: var(--bad); }
@@ -239,6 +239,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .placement { max-width: 40rem; margin: 0 auto; padding: 2rem 1rem;
   display: flex; flex-direction: column; align-items: center; text-align: center; }
 .placement-done p { font-size: 1.1rem; margin: 1rem 0; }
+.placement-counter { color: var(--muted); font-size: 0.85rem; margin: 0 0 1rem; }
 
 .placement-offer-actions { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1rem; }
 

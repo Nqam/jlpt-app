@@ -11,7 +11,7 @@ function Shell() {
       <Nav />
       <main className="app-main">
         <header className="app-header">
-          <span data-testid="app-title" className="app-brand">JLPT</span>
+          <span data-testid="app-title" className="app-brand">こつこつ</span>
           <ThemeToggle />
         </header>
         <ContentDbProvider>

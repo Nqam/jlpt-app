@@ -1,4 +1,6 @@
-# JLPT — приложение для изучения японского (N5–N4)
+# こつこつ (Kotsukotsu) — приложение для изучения японского (N5–N4)
+
+«こつこつ» — «понемногу, но упорно»: ровно про то, как устроено приложение.
 
 Настольное приложение для подготовки к JLPT: интервальные повторения (FSRS),
 справочники грамматики / кандзи / слов, короткие тексты с вопросами на понимание,
@@ -11,7 +13,7 @@
 ## Установка (Windows)
 
 Скачайте установщик со страницы [Releases](https://github.com/Nqam/jlpt-app/releases/latest)
-(`JLPT Setup <версия>.exe`) и запустите его.
+(`Kotsukotsu Setup <версия>.exe`) и запустите его.
 
 Установщик не подписан, поэтому SmartScreen покажет предупреждение
 «Windows защитила ваш компьютер» → **Подробнее** → **Выполнить в любом случае**.
@@ -31,7 +33,7 @@ npm run build-content   # собирает resources/content.db из локал�
 npm run dev             # запускает приложение в режиме разработки
 npm test                # Vitest (ядро, хранилище, UI)
 npm run test:e2e        # Playwright (Electron)
-npm run build:desktop:installer   # -> dist/JLPT Setup <версия>.exe
+npm run build:desktop:installer   # -> dist/Kotsukotsu Setup <версия>.exe
 ```
 
 ### Учебный контент

@@ -42,6 +42,8 @@ vi.mock('@/core/placement', () => ({
   applyPlacementAnswer: (state: FakeState) => ({ step: state.step + 1 }),
   isPlacementDone: (state: FakeState) => state.step >= script.value.length,
   placementFrontierIds: () => frontier.value,
+  placementQuestionNumber: (state: FakeState) => state.step + 1,
+  placementRemaining: (state: FakeState) => Math.max(0, script.value.length - state.step),
 }));
 
 import { PlacementScreen } from '@/ui/screens/PlacementScreen';
@@ -74,6 +76,19 @@ describe('PlacementScreen', () => {
     expect(insertReviewLog).not.toHaveBeenCalled();
     expect(setSetting).toHaveBeenCalledWith('placement_offered', true);
     expect(setSetting).toHaveBeenCalledWith('placement_marked_ids', expect.arrayContaining(['p1', 'p2']));
+  });
+
+  it('shows a question counter that advances', () => {
+    script.value = [
+      { itemId: 'p1', question: choiceQ('p1:0', 'p1') },
+      { itemId: 'p2', question: choiceQ('p2:1', 'p2') },
+    ];
+    frontier.value = [];
+    renderScreen();
+    expect(screen.getByText(/Вопрос 1/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'A' }));
+    fireEvent.click(screen.getByRole('button', { name: /далее/i }));
+    expect(screen.getByText(/Вопрос 2/)).toBeInTheDocument();
   });
 
   it('does not record placement_marked_ids when nothing new was marked', () => {

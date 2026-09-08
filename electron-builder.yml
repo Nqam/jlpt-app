@@ -1,6 +1,6 @@
-appId: com.jlmp.app
-productName: JLPT
-# version берётся из package.json (0.1.0)
+appId: com.jlmp.app  # НЕ менять: GUID установщика и AppUserModelID завязаны на него
+productName: Kotsukotsu
+# version берётся из package.json
 
 directories:
   output: dist
@@ -33,4 +33,4 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: JLPT
+  shortcutName: Kotsukotsu

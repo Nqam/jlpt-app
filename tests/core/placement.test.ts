@@ -5,6 +5,8 @@ import {
   applyPlacementAnswer,
   isPlacementDone,
   placementFrontierIds,
+  placementQuestionNumber,
+  placementRemaining,
   type PlacementState,
 } from '@/core/placement';
 import type { ContentDb, GrammarPointFull } from '@/storage/content-db';
@@ -124,6 +126,21 @@ describe('core/placement', () => {
     expect(step!.question.itemType).toBe('grammar');
     expect(['cloze', 'choice', 'assemble']).toContain(step!.question.kind);
     expect(step!.itemId).toBe(ids[Math.floor(ids.length / 2)]);
+  });
+
+  it('question number is 1-based and remaining shrinks with each answer', () => {
+    const content = fakeContent(ids); // 8 points -> range [0,8), remaining = ceil(log2(9)) = 4
+    let state = initPlacement(content, ALL);
+    expect(placementQuestionNumber(state)).toBe(1);
+    expect(placementRemaining(state)).toBe(4);
+    state = applyPlacementAnswer(state, true); // [5,8) -> ceil(log2(4)) = 2
+    expect(placementQuestionNumber(state)).toBe(2);
+    expect(placementRemaining(state)).toBe(2);
+    state = applyPlacementAnswer(state, false); // [5,6) -> ceil(log2(2)) = 1
+    expect(placementRemaining(state)).toBe(1);
+    state = applyPlacementAnswer(state, true); // [6,6) done
+    expect(isPlacementDone(state)).toBe(true);
+    expect(placementRemaining(state)).toBe(0);
   });
 
   it('is immediately done with an empty frontier when no grammar is available', () => {

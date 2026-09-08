@@ -84,3 +84,18 @@ export function applyPlacementAnswer(state: PlacementState, correct: boolean): P
 export function placementFrontierIds(state: PlacementState): string[] {
   return state.ids.slice(0, state.lo);
 }
+
+/** Номер текущего вопроса (1-based). */
+export function placementQuestionNumber(state: PlacementState): number {
+  return state.askedCount + 1;
+}
+
+/**
+ * Сколько вопросов ещё осталось до конца теста при любом раскладе ответов:
+ * бинарный поиск делит диапазон `[lo, hi)` пополам каждым ответом, значит
+ * нужно ровно `ceil(log2(hi - lo + 1))` вопросов, чтобы его схлопнуть.
+ */
+export function placementRemaining(state: PlacementState): number {
+  if (isPlacementDone(state)) return 0;
+  return Math.ceil(Math.log2(state.hi - state.lo + 1));
+}

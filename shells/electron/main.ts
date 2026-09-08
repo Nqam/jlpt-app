@@ -12,6 +12,13 @@ import { backupFileName, backupsToPrune } from '../../src/core/backup';
 // !isDev && !isPackaged, и оба пути должны работать.
 const isDev = !!process.env['ELECTRON_RENDERER_URL'];
 
+// Имя приложения сменилось на «Kotsukotsu», но `%APPDATA%/JLPT/` уже хранит
+// user.db существующих пользователей. Пиним каталог данных под старым именем,
+// чтобы прогресс пережил переименование. `--user-data-dir` (e2e) не трогаем.
+if (!process.argv.some((a) => a.startsWith('--user-data-dir'))) {
+  app.setPath('userData', join(app.getPath('appData'), 'JLPT'));
+}
+
 /** Путь к поставляемому `content.db`: dev — `resources/` в корне репо, prod — `process.resourcesPath`. */
 function contentDbPath(): string {
   return app.isPackaged
@@ -73,8 +80,8 @@ ipcMain.handle('user-db:export', async (evt, bytes: ArrayBuffer): Promise<boolea
   const win = BrowserWindow.fromWebContents(evt.sender);
   const options = {
     title: 'Экспорт резервной копии',
-    defaultPath: `jlpt-backup-${new Date().toISOString().slice(0, 10)}.db`,
-    filters: [{ name: 'JLPT backup', extensions: ['db'] }],
+    defaultPath: `kotsukotsu-backup-${new Date().toISOString().slice(0, 10)}.db`,
+    filters: [{ name: 'Kotsukotsu backup', extensions: ['db'] }],
   };
   const { canceled, filePath } = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
   if (canceled || !filePath) return false;
@@ -86,7 +93,7 @@ ipcMain.handle('user-db:import', async (evt): Promise<ArrayBuffer | null> => {
   const win = BrowserWindow.fromWebContents(evt.sender);
   const options: Electron.OpenDialogOptions = {
     title: 'Импорт резервной копии',
-    filters: [{ name: 'JLPT backup', extensions: ['db'] }],
+    filters: [{ name: 'Kotsukotsu backup', extensions: ['db'] }],
     properties: ['openFile'],
   };
   const { canceled, filePaths } = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
