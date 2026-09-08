@@ -204,6 +204,13 @@ describe('buildContentDb', () => {
     )[0]!.values[0]![0];
     expect(qCount).toBe(4);
 
+    // известный вопрос round-trip'ит через write-path: n5-hanami Q1 "Когда цветёт сакура?"
+    const q1 = db.exec(
+      "SELECT answer_index, choices_json FROM lesson_questions WHERE lesson_id = 'n5-hanami' AND ord = 0",
+    )[0]!.values[0]!;
+    expect(q1[0]).toBe(0);
+    expect((JSON.parse(String(q1[1])) as string[]).length).toBe(4);
+
     // 15 мигрированных текстов — свободное чтение: ни introduces, ни маркеров
     const introduces = db.exec('SELECT count(*) FROM lesson_introduces')[0]!.values[0]![0];
     expect(introduces).toBe(0);

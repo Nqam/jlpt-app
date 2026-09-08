@@ -84,6 +84,7 @@ CREATE TABLE lesson_markers (
   lesson_id     TEXT    NOT NULL,
   item_type     TEXT    NOT NULL,
   item_id       TEXT    NOT NULL,
+  ord           INTEGER NOT NULL,
   surface       TEXT    NOT NULL,
   sentence_ruby TEXT    NOT NULL,
   sentence_ru   TEXT    NOT NULL,            -- может быть ''

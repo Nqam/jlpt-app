@@ -149,6 +149,11 @@ function parseMarkers(
     if (nn !== -1) toRel = Math.min(toRel, nn);
     let sentenceRuby = expandMarkers(rawBody.slice(from, end + toRel)).trim();
     sentenceRuby = sentenceRuby.replace(SPEAKER_PREFIX, '');
+    if (sentenceRuby.includes('{{') || sentenceRuby.includes('}}')) {
+      throw new Error(
+        `${path}: marker "${id}" — sentence context clips an adjacent marker; put markers in separate sentences`,
+      );
+    }
 
     // абзац перевода: индекс абзаца тела, где стоит маркер
     let acc = 0;
@@ -237,6 +242,18 @@ export function validateLessons(lessons: ParsedLesson[]): string[] {
       if (q.answerIndex < 0 || q.answerIndex >= q.choices.length) {
         errors.push(`${l.id}: answerIndex ${q.answerIndex} out of range for question "${q.prompt}"`);
       }
+    }
+
+    const seenIntro = new Set<string>();
+    for (const it of l.introduces) {
+      const k = `${it.type}:${it.id}`;
+      if (seenIntro.has(k)) errors.push(`${l.id}: duplicate introduce "${it.type}:${it.id}"`);
+      seenIntro.add(k);
+    }
+    const seenReview = new Set<string>();
+    for (const rid of l.reviews) {
+      if (seenReview.has(rid)) errors.push(`${l.id}: duplicate review id "${rid}"`);
+      seenReview.add(rid);
     }
 
     let segs;

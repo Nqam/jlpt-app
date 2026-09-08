@@ -293,7 +293,7 @@ export class ContentDb {
     }));
 
     const markers: LessonMarker[] = this.all<LessonMarkerRow>(
-      'SELECT item_type, item_id, surface, sentence_ruby, sentence_ru FROM lesson_markers WHERE lesson_id = ?',
+      'SELECT item_type, item_id, surface, sentence_ruby, sentence_ru FROM lesson_markers WHERE lesson_id = ? ORDER BY ord',
       [id],
     ).map((r) => ({
       type: r.item_type as LessonMarker['type'],

@@ -56,7 +56,7 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
   for (const l of levels) insLevel.run([l.code, l.ord, l.status, l.titleRu]);
   insLevel.free();
 
-  const ids = new Set(grammar.map((g) => g.id));
+  const grammarIds = new Set(grammar.map((g) => g.id));
 
   // Проход 1: сами пункты грамматики и их примеры.
   const insG = db.prepare(
@@ -74,7 +74,7 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
   const insR = db.prepare('INSERT INTO grammar_relations (from_id, to_id) VALUES (?,?)');
   for (const g of grammar) {
     for (const r of [...g.related].sort()) {
-      if (ids.has(r)) insR.run([g.id, r]);
+      if (grammarIds.has(r)) insR.run([g.id, r]);
     }
   }
   insR.free();
@@ -114,7 +114,7 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
   const lessonErrors = validateLessons(lessons);
   if (lessonErrors.length) throw new Error(`lessons validation failed:\n${lessonErrors.join('\n')}`);
   const refSets = {
-    grammar: ids,
+    grammar: grammarIds,
     kanji: new Set(kanji.map((k) => k.id)),
     vocab: new Set(vocab.map((v) => v.id)),
   };
@@ -150,7 +150,7 @@ export function insertLessons(
     'INSERT INTO lesson_introduces (lesson_id, item_type, item_id, role, ord) VALUES (?,?,?,?,?)',
   );
   const insLM = db.prepare(
-    'INSERT INTO lesson_markers (lesson_id, item_type, item_id, surface, sentence_ruby, sentence_ru) VALUES (?,?,?,?,?,?)',
+    'INSERT INTO lesson_markers (lesson_id, item_type, item_id, ord, surface, sentence_ruby, sentence_ru) VALUES (?,?,?,?,?,?,?)',
   );
   for (const l of lessons) {
     insL.run([l.id, l.stage, l.kind, l.title, l.bodyRuby, l.translationRu]);
@@ -160,12 +160,17 @@ export function insertLessons(
     let ord = 0;
     for (const it of l.introduces) insLI.run([l.id, it.type, it.id, 'introduce', ord++]);
     for (const rid of l.reviews) {
-      const type = (['grammar', 'kanji', 'vocab'] as const).find((t) => setFor(t).has(rid))!;
+      const type = (['grammar', 'kanji', 'vocab'] as const).find((t) => setFor(t).has(rid));
+      if (!type) {
+        throw new Error(
+          `insertLessons: review id "${rid}" in lesson "${l.id}" resolves to no item type (validateLessonRefs should have caught this)`,
+        );
+      }
       insLI.run([l.id, type, rid, 'review', ord++]);
     }
-    for (const mk of l.markers) {
-      insLM.run([l.id, mk.type, mk.id, mk.surface, mk.sentenceRuby, mk.sentenceRu]);
-    }
+    l.markers.forEach((mk, i) =>
+      insLM.run([l.id, mk.type, mk.id, i, mk.surface, mk.sentenceRuby, mk.sentenceRu]),
+    );
   }
   insL.free();
   insLQ.free();

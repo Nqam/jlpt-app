@@ -127,6 +127,86 @@ describe('parseLessonFile', () => {
   });
 });
 
+describe('parseMarkers (via parseLessonFile)', () => {
+  const withFrontmatter = (lines: string[]): string[] => [
+    '---', 'id: t1', 'stage: 3', 'kind: text', 'title: "t"', '---', '', ...lines,
+  ];
+
+  it('1. маркер в начале тела → предложение от начала до первой 。', () => {
+    const path = tmpFile(withFrontmatter([
+      ...body('{{g:g1|文[ぶん]}}です。次[つぎ]の 話[はなし]。'),
+      ...trans('Первое предложение. Второе предложение.'),
+      ...oneQuestion(),
+    ]).join('\n'));
+    const l = parseLessonFile(path);
+    const mk = l.markers.find((m) => m.id === 'g1')!;
+    expect(mk.sentenceRuby).toBe('文[ぶん]です。');
+  });
+
+  it('2. маркер во 2-м абзаце → sentenceRu берётся из 2-го абзаца перевода', () => {
+    const path = tmpFile(withFrontmatter([
+      ...body('一[ひと]つ目[め]。\n\n{{g:g1|二[ふた]つ目[め]}}です。'),
+      ...trans('Первый абзац.\n\nВторой абзац.'),
+      ...oneQuestion(),
+    ]).join('\n'));
+    const l = parseLessonFile(path);
+    const mk = l.markers.find((m) => m.id === 'g1')!;
+    expect(mk.sentenceRu).toBe('Второй абзац.');
+  });
+
+  it('3. dialogue: sentenceRuby без префикса говорящего, sentenceRu — с ним', () => {
+    const path = tmpFile([
+      ...fm({ kind: 'dialogue' }),
+      '## Текст', '', 'A: {{g:g1|おはよう}}ございます。', '',
+      '## Перевод', '', 'A: Доброе утро.', '',
+      ...oneQuestion(),
+    ].join('\n'));
+    const l = parseLessonFile(path);
+    const mk = l.markers.find((m) => m.id === 'g1')!;
+    expect(mk.sentenceRuby).toBe('おはようございます。');
+    expect(mk.sentenceRu).toBe('A: Доброе утро.');
+  });
+
+  it('4. два чистых маркера в одном предложении → у обоих одинаковый полный контекст без скобок', () => {
+    const path = tmpFile(withFrontmatter([
+      ...body('{{g:g1|今日[きょう]}}は {{v:v1|寒[さむ]い}}です。'),
+      ...trans('Сегодня холодно.'),
+      ...oneQuestion(),
+    ]).join('\n'));
+    const l = parseLessonFile(path);
+    const g = l.markers.find((m) => m.id === 'g1')!;
+    const v = l.markers.find((m) => m.id === 'v1')!;
+    expect(g.sentenceRuby).toBe('今日[きょう]は 寒[さむ]いです。');
+    expect(v.sentenceRuby).toBe('今日[きょう]は 寒[さむ]いです。');
+    expect(g.sentenceRuby).not.toMatch(/\{\{|\}\}/);
+  });
+
+  it('5. FR-2: surface с 。 вплотную перед следующим маркером → бросает "clips an adjacent marker"', () => {
+    const path = tmpFile(withFrontmatter([
+      ...body('{{g:g1|文[ぶん]。次[つぎ]}}{{v:v1|それ}}です。'),
+      ...trans('Одно предложение. Второе.'),
+      ...oneQuestion(),
+    ]).join('\n'));
+    expect(() => parseLessonFile(path)).toThrow(/clips an adjacent marker/);
+  });
+});
+
+describe('validateLessons — дубли ссылок (FR-1)', () => {
+  const withFm = (lines: string[]): string =>
+    ['---', 'id: t1', 'stage: 3', 'kind: text', 'title: "t"', ...lines, '---', '',
+      ...body('文[ぶん]。'), ...trans('Т.'), ...oneQuestion()].join('\n');
+
+  it('6. FR-1: introduces_grammar с повтором id → ошибка /duplicate introduce/', () => {
+    const l = parseLessonFile(tmpFile(withFm(['introduces_grammar:', '  - g1', '  - g1'])));
+    expect(validateLessons([l]).some((e) => /duplicate introduce/.test(e))).toBe(true);
+  });
+
+  it('7. FR-1: reviews с повтором id → ошибка /duplicate review/', () => {
+    const l = parseLessonFile(tmpFile(withFm(['reviews:', '  - g1', '  - g1'])));
+    expect(validateLessons([l]).some((e) => /duplicate review/.test(e))).toBe(true);
+  });
+});
+
 describe('loadAllLessons', () => {
   it('читает все *.md из плоского каталога', () => {
     const dir = mkdtempSync(join(tmpdir(), 'lessons-dir-'));

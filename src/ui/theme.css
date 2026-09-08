@@ -296,6 +296,6 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 }
 /* Кнопки-действия с крупным паддингом не должны быть шире своей колонки. */
 .btn-primary,
-.btn-ghost { max-width: 100%; box-sizing: border-box; overflow-wrap: anywhere; }
+.btn-ghost { max-width: 100%; overflow-wrap: anywhere; }
 /* Вкладки уровней при нехватке ширины переносятся, а не режутся краем окна. */
 .level-tabs { flex-wrap: wrap; }
