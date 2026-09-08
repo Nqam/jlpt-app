@@ -67,3 +67,48 @@ test('switching to the N4 tab shows N4 texts', async () => {
 
   await app.close();
 });
+
+test('экраны урока помещаются в узкое окно без горизонтального обрезания', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'jlpt-e2e-texts-narrow-'));
+  const app = await electron.launch({
+    args: [join(process.cwd(), 'out/main/main.js'), `--user-data-dir=${userData}`],
+  });
+  const win = await app.firstWindow();
+  await win.waitForSelector('[data-testid="user-db-ready"]', { state: 'attached', timeout: 20_000 });
+  await win.setViewportSize({ width: 380, height: 800 });
+
+  await win.getByRole('link', { name: /Тексты/ }).click();
+  await expect(win.getByRole('heading', { name: 'Тексты' })).toBeVisible();
+
+  // список: без горизонтального переполнения корня
+  const listOverflow = await win.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(listOverflow).toBeLessThanOrEqual(1);
+
+  await win.getByRole('link', { name: /キツネとツル/ }).click();
+  await expect(win.getByRole('heading', { name: 'キツネとツル' })).toBeVisible();
+
+  // деталь урока: первый вопрос виден сразу, варианты внутри окна
+  const detailOverflow = await win.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(detailOverflow).toBeLessThanOrEqual(1);
+
+  const anyOptClipped = await win.evaluate(
+    () =>
+      [...document.querySelectorAll('.q-opt')].some(
+        (el) => el.getBoundingClientRect().right > window.innerWidth + 1,
+      ),
+  );
+  expect(anyOptClipped).toBe(false);
+
+  // кнопка «Показать перевод» — тоже внутри окна
+  const revealClipped = await win.evaluate(() => {
+    const b = [...document.querySelectorAll('button')].find((el) => el.textContent?.includes('Показать перевод'));
+    return b ? b.getBoundingClientRect().right > window.innerWidth + 1 : true;
+  });
+  expect(revealClipped).toBe(false);
+
+  await app.close();
+});

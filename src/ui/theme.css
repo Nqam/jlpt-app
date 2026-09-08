@@ -280,3 +280,22 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .text-translation p { margin: 0 0 0.6em; }
 .text-question { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .text-done { margin-top: 1.5rem; font-size: 1.05rem; color: var(--ok); font-weight: 600; }
+
+/* --- Plan 5-1: интерактивные области вписаны в окно, ничего не обрезается --- */
+/* Дети CSS-grid по умолчанию имеют min-width:auto и раздвигают трек шире
+   контейнера при длинном неразрывном содержимом. min-width:0 + перенос по
+   любому месту удерживают кнопки в колонке экрана. */
+.q-options,
+.rating-row { max-width: 100%; }
+.q-opt,
+.rating { min-width: 0; overflow-wrap: anywhere; }
+/* На узком окне два столбца вариантов не помещаются — переходим в один.
+   (файл использует px-брейкпоинты; 28rem = 448px) */
+@media (max-width: 448px) {
+  .q-options { grid-template-columns: 1fr; }
+}
+/* Кнопки-действия с крупным паддингом не должны быть шире своей колонки. */
+.btn-primary,
+.btn-ghost { max-width: 100%; box-sizing: border-box; overflow-wrap: anywhere; }
+/* Вкладки уровней при нехватке ширины переносятся, а не режутся краем окна. */
+.level-tabs { flex-wrap: wrap; }
