@@ -1,0 +1,9 @@
+# Нормализация переводов строк: в репозитории всегда LF, в рабочей копии —
+# как на платформе. Убирает шум "LF will be replaced by CRLF" на Windows.
+* text=auto eol=lf
+
+*.woff2 binary
+*.ico binary
+*.png binary
+*.db binary
+*.exe binary
