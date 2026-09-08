@@ -191,6 +191,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
   border-top: 1px solid var(--border); padding-top: 0.8rem; }
 .q-answer-line { margin: 0; }
 .q-translation { color: var(--muted); }
+.q-cloze-translation { margin: 4px 0 0; font-size: 0.9rem; }
 .q-more { color: var(--accent); }
 
 /* --- Plan 4a-1: kanji reference --- */

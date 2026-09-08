@@ -1,4 +1,5 @@
 import type { GrammarPointFull } from '@/storage/content-db';
+import type { RubySegment } from '@/core/types';
 import type {
   Question, ClozeQuestion, ChoiceQuestion, AssembleQuestion,
 } from '@/core/quiz/types';
@@ -70,42 +71,78 @@ export function firstSentence(text: string, max = 80): string {
 }
 
 
+const JP_CHAR = /[぀-ヿ一-鿿々ー]/g;
+const jpLen = (s: string) => (s.match(JP_CHAR) ?? []).length;
+
+/** Минимум японского текста ВОКРУГ пропуска, чтобы вопрос был не наугад. */
+const MIN_CLOZE_CTX_CHARS = 6;
+const MIN_CLOZE_CTX_RUNS = 2;
+
+/** Сколько японского контекста остаётся в предложении, если вырезать `core` из сегмента `si`. */
+function clozeContext(segs: readonly RubySegment[], si: number, core: string) {
+  let chars = 0;
+  let runs = 0;
+  segs.forEach((s, i) => {
+    const n = jpLen(s.base) + jpLen(s.ruby ?? '') - (i === si ? core.length : 0);
+    if (n <= 0) return;
+    chars += n;
+    if (i !== si) runs += 1;
+  });
+  return { chars, runs };
+}
+
 export const genCloze: GrammarGenerator = (point, levelPoints, seed) => {
   const cands = coreCandidates(point.title);
   if (!point.examples.length || !cands.length) return null;
 
-  // DEVIATION FROM BRIEF: the brief's cloze step 2 says to iterate examples in
-  // `seededShuffle(point.examples, seed)` order, but the brief test
-  // ("blanks the construction core…") asserts the blank is produced from the
-  // FIRST declared example (its fixture has the core `は` in every example, so
-  // only iteration order decides). Iterating in declared order is the smallest
-  // change that satisfies the test; the function stays a pure, deterministic
-  // function of (point, levelPoints, seed). Reported to the controller.
-  for (const ex of point.examples) {
+  // Among ALL examples, find every one where a construction core lands in a
+  // furigana-free segment AND enough sentence survives around the blank to
+  // make the choice non-arbitrary (a 2-mora stub like `食べ___。` is rejected).
+  // Pick the example with the most surrounding context; ties break toward a
+  // non-empty translation, then declared order — deterministic, and the
+  // longstanding "first declared example" behaviour still holds when examples
+  // are equal length.
+  type Hit = { idx: number; core: string; segs: RubySegment[]; si: number; ctx: number };
+  const hits: Hit[] = [];
+  point.examples.forEach((ex, idx) => {
     const segs = parseRuby(ex.jaRuby);
     for (const core of cands) {
       const si = segs.findIndex(
         (s) => s.ruby === null && s.base.trim() !== '' && s.base.includes(core),
       );
       if (si === -1) continue;
-      const seg = segs[si]!;
-      const at = seg.base.indexOf(core);
-      const blanked = `${seg.base.slice(0, at)}___${seg.base.slice(at + core.length)}`;
-      const newSegs = segs.slice();
-      newSegs[si] = { base: blanked, ruby: null };
-      const pool = distractorPool(levelPoints, point.id, (p) => coreCandidates(p.title));
-      const distractors = pickDistractors(pool, core, 3, `${seed}:d`);
-      const { list, answerIndex } = shuffleWithAnswer([core, ...distractors], `${seed}:c`);
-      const q: ClozeQuestion = {
-        id: seed, itemType: 'grammar', itemId: point.id, kind: 'cloze',
-        prompt: 'Выбери пропущенное слово',
-        sentenceRuby: stringifyRuby(newSegs),
-        choices: list, answerIndex,
-      };
-      return q;
+      const ctx = clozeContext(segs, si, core);
+      if (ctx.chars >= MIN_CLOZE_CTX_CHARS && ctx.runs >= MIN_CLOZE_CTX_RUNS) {
+        hits.push({ idx, core, segs, si, ctx: ctx.chars });
+      }
+      break; // first (longest) matched core decides this example
     }
-  }
-  return null;
+  });
+  if (!hits.length) return null;
+
+  hits.sort(
+    (a, b) =>
+      b.ctx - a.ctx ||
+      Number(!!point.examples[b.idx]!.ru) - Number(!!point.examples[a.idx]!.ru) ||
+      a.idx - b.idx,
+  );
+  const { idx, core, segs, si } = hits[0]!;
+  const seg = segs[si]!;
+  const at = seg.base.indexOf(core);
+  const blanked = `${seg.base.slice(0, at)}___${seg.base.slice(at + core.length)}`;
+  const newSegs = segs.slice();
+  newSegs[si] = { base: blanked, ruby: null };
+  const pool = distractorPool(levelPoints, point.id, (p) => coreCandidates(p.title));
+  const distractors = pickDistractors(pool, core, 3, `${seed}:d`);
+  const { list, answerIndex } = shuffleWithAnswer([core, ...distractors], `${seed}:c`);
+  const q: ClozeQuestion = {
+    id: seed, itemType: 'grammar', itemId: point.id, kind: 'cloze',
+    prompt: 'Выбери пропущенное слово',
+    sentenceRuby: stringifyRuby(newSegs),
+    translationRu: point.examples[idx]!.ru,
+    choices: list, answerIndex,
+  };
+  return q;
 };
 
 export const genChoice: GrammarGenerator = (point, levelPoints, seed) => {

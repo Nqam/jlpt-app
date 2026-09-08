@@ -11,6 +11,7 @@ vi.mock('@/ui/useUserDb', () => ({
 const cloze: ClozeQuestion = {
   id: 'g:d:cloze', itemType: 'grammar', itemId: 'n5-wa', kind: 'cloze',
   prompt: 'Выбери пропущенное слово', sentenceRuby: '私[わたし]___ 学生[がくせい]です。',
+  translationRu: 'Я студент.',
   choices: ['は', 'を', 'に', 'も'], answerIndex: 0,
 };
 const assemble: AssembleQuestion = {
@@ -21,6 +22,18 @@ const assemble: AssembleQuestion = {
 };
 
 describe('QuestionView', () => {
+  it('cloze: shows the sentence translation as context', () => {
+    render(<QuestionView question={cloze} onAnswer={vi.fn()} revealed={null} />);
+    expect(screen.getByText('Я студент.')).toBeInTheDocument();
+  });
+
+  it('cloze: no translation line when translationRu is empty', () => {
+    render(
+      <QuestionView question={{ ...cloze, translationRu: '' }} onAnswer={vi.fn()} revealed={null} />,
+    );
+    expect(screen.queryByText('Я студент.')).toBeNull();
+  });
+
   it('cloze: clicking a choice reports its index', () => {
     const onAnswer = vi.fn();
     render(<QuestionView question={cloze} onAnswer={onAnswer} revealed={null} />);

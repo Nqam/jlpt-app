@@ -49,16 +49,21 @@ export function QuestionView({
       <div className={`q q-${question.kind}`}>
         <p className="q-prompt">{question.prompt}</p>
         {question.kind === 'cloze' && (
-          <p className="q-sentence">
-            {question.sentenceRuby.split('___').map((part, i, arr) => (
-              <span key={i}>
-                <Furigana text={part} />
-                {i < arr.length - 1 && (
-                  <span className="cloze-blank">＿＿＿</span>
-                )}
-              </span>
-            ))}
-          </p>
+          <>
+            <p className="q-sentence">
+              {question.sentenceRuby.split('___').map((part, i, arr) => (
+                <span key={i}>
+                  <Furigana text={part} />
+                  {i < arr.length - 1 && (
+                    <span className="cloze-blank">＿＿＿</span>
+                  )}
+                </span>
+              ))}
+            </p>
+            {question.translationRu && (
+              <p className="q-translation q-cloze-translation">{question.translationRu}</p>
+            )}
+          </>
         )}
         <div className="q-options">
           {question.choices.map((c, i) => {

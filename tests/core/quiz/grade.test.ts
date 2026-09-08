@@ -4,7 +4,7 @@ import type { ClozeQuestion, ChoiceQuestion, AssembleQuestion } from '@/core/qui
 
 const cloze: ClozeQuestion = {
   id: 'g:2026-09-04:cloze', itemType: 'grammar', itemId: 'g', kind: 'cloze',
-  prompt: 'Выбери пропущенное', sentenceRuby: 'これは ___ です。',
+  prompt: 'Выбери пропущенное', sentenceRuby: 'これは ___ です。', translationRu: 'Это книга.',
   choices: ['は', 'を', 'に', 'も'], answerIndex: 0,
 };
 const choice: ChoiceQuestion = {

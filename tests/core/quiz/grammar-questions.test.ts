@@ -95,6 +95,35 @@ describe('genCloze', () => {
     const p = point({ title: 'ぜんぜん (совсем не)', examples: [{ jaRuby: '本[ほん]です。', ru: '' }] });
     expect(genCloze(p, others, 's')).toBeNull();
   });
+
+  it('carries the chosen example translation', () => {
+    const q = genCloze(point(), others, 's')!;
+    if (q.kind !== 'cloze') throw new Error('expected cloze');
+    expect(q.translationRu).toBe('Я студент.');
+  });
+
+  it('returns null when every example is a context-free stub', () => {
+    // `食[た]べます。` → blank leaves `食べ ___ 。` — nothing to reason from.
+    const p = point({
+      title: '〜ます (вежливая форма)',
+      examples: [{ jaRuby: '食[た]べます。', ru: 'Ем.' }],
+    });
+    expect(genCloze(p, others, 's')).toBeNull();
+  });
+
+  it('skips a stub example in favour of one with real context', () => {
+    const p = point({
+      title: '〜ます (вежливая форма)',
+      examples: [
+        { jaRuby: '食[た]べます。', ru: 'Ем.' },
+        { jaRuby: '私[わたし]は 毎日[まいにち] 日本語[にほんご]を 勉強[べんきょう]します。', ru: 'Я каждый день учу японский.' },
+      ],
+    });
+    const q = genCloze(p, others, 's')!;
+    if (q.kind !== 'cloze') throw new Error('expected cloze');
+    expect(q.sentenceRuby).toContain('毎日');
+    expect(q.translationRu).toBe('Я каждый день учу японский.');
+  });
 });
 
 describe('genChoice', () => {

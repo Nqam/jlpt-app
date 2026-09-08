@@ -16,6 +16,8 @@ export interface ClozeQuestion extends QuestionBase {
   kind: 'cloze';
   /** Японское предложение в записи фуриганы с маркером `___`. */
   sentenceRuby: string;
+  /** Перевод предложения — контекст под пропуском (не выдаёт ответ). Может быть пустым. */
+  translationRu: string;
   /** Длина 4, ровно один правильный. */
   choices: string[];
   answerIndex: number;
