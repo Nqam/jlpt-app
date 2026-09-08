@@ -1,0 +1,84 @@
+/** Код уровня JLPT как строка из content.db, например "N5". Не enum — уровни расширяемы. */
+export type LevelCode = string;
+
+/** The three kinds of reviewable SRS content. */
+export type ItemType = 'grammar' | 'kanji' | 'vocab';
+
+export interface Level {
+  code: LevelCode;
+  /** Порядок на ленте: N5 = 1 ... N1 = 5. */
+  ord: number;
+  /** "available" — контент есть; "coming_soon" — сегмент показан, но пуст. */
+  status: 'available' | 'coming_soon';
+  titleRu: string;
+}
+
+export interface GrammarExample {
+  /** Японское предложение в записи фуриганы: "私[わたし]は 学生[がくせい]です。" */
+  jaRuby: string;
+  /** Перевод на русский. */
+  ru: string;
+}
+
+export interface GrammarPoint {
+  id: string;
+  level: LevelCode;
+  /** Заголовок пункта, напр. "は (тема предложения)". */
+  title: string;
+  /** Слой внутри уровня (1..N) — порядок изучения. */
+  layer: number;
+  tags: string[];
+  /** id других пунктов грамматики. */
+  related: string[];
+  /** Тело объяснения в Markdown (секции ## Кратко / ## Образование / ...). */
+  bodyMarkdown: string;
+  examples: GrammarExample[];
+}
+
+export interface RubySegment {
+  base: string;
+  /** Чтение над кандзи; null для сегментов без фуриганы (кана, пунктуация). */
+  ruby: string | null;
+}
+
+export interface KanjiPoint {
+  id: string;
+  level: LevelCode;
+  char: string;
+  /** Онное чтение (катакана). */
+  onyomi: string[];
+  /** Кунное чтение (хирагана, "." отделяет окуригану — напр. "まな.ぶ"). */
+  kunyomi: string[];
+  strokeCount: number;
+  meaningRu: string;
+}
+
+export interface VocabPoint {
+  id: string;
+  level: LevelCode;
+  headword: string;
+  reading: string;
+  /** Часть речи в кратком русском обозначении (может быть пустой строкой). */
+  pos: string;
+  meaningRu: string;
+}
+
+export interface TextQuestion {
+  /** Текст вопроса на русском. */
+  prompt: string;
+  /** 3-4 варианта ответа на русском. */
+  choices: string[];
+  /** Индекс верного варианта в `choices`. */
+  answerIndex: number;
+}
+
+export interface TextPoint {
+  id: string;
+  level: LevelCode;
+  title: string;
+  /** Японский текст в записи фуриганы ("кандзи[чтение]"), абзацы разделены "\n\n". */
+  bodyRuby: string;
+  /** Русский перевод, абзацы разделены "\n\n" (столько же абзацев, сколько в bodyRuby). */
+  translationRu: string;
+  questions: TextQuestion[];
+}

@@ -1,0 +1,21 @@
+/*
+ * Noto Sans JP (SIL Open Font License 1.1 — см. src/ui/fonts/OFL.txt).
+ * Подмножество «japanese» из @fontsource/noto-sans-jp@5: кана + распространённые
+ * иероглифы, покрывает весь диапазон N5–N1. Вшито в приложение — работает офлайн,
+ * японская типографика одинакова на всех машинах, не зависит от системных шрифтов.
+ * Латиница/кириллица интерфейса остаются на системном шрифте (см. theme.css).
+ */
+@font-face {
+  font-family: 'Noto Sans JP';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./noto-sans-jp-japanese-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans JP';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./noto-sans-jp-japanese-700.woff2') format('woff2');
+}

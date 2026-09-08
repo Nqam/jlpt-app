@@ -1,0 +1,36 @@
+appId: com.jlmp.app
+productName: JLPT
+# version берётся из package.json (0.1.0)
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+# Оба файла обязательны: упакованный Electron main читает их из
+# process.resourcesPath (см. shells/electron/main.ts).
+#   content.db     — учебная база (npm run build-content -> resources/content.db)
+#   sql-wasm.wasm  — wasm-модуль sql.js; берём из node_modules для паритета версий
+#                    с dev-режимом (createRequire('sql.js/dist/sql-wasm.wasm')).
+extraResources:
+  - from: resources/content.db
+    to: content.db
+  - from: node_modules/sql.js/dist/sql-wasm.wasm
+    to: sql-wasm.wasm
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: JLPT

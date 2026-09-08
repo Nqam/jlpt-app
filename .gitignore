@@ -1,0 +1,17 @@
+node_modules/
+out/
+dist/
+data/raw/
+*.log
+.DS_Store
+test-results/
+playwright-report/
+release/
+
+# Учебный контент и собранная база — не публикуются (см. docs/superpowers/specs/
+# 2026-09-08-plan-4f-desktop-release-design.md, вариант C). Остаются только локально.
+content/
+resources/content.db
+
+# SDD-леджеры суперсил — рабочие файлы, не для репозитория
+.superpowers/

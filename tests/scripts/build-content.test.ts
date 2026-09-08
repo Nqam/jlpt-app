@@ -1,0 +1,221 @@
+import { describe, it, expect, beforeAll } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import initSqlJs from 'sql.js';
+import { buildContentDb, initWriter } from '../../scripts/build-content/write-db';
+
+describe('content.db schema', () => {
+  it('executes without error and creates expected tables', async () => {
+    const SQL = await initSqlJs({
+      locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
+    });
+    const db = new SQL.Database();
+    const ddl = readFileSync(resolve(__dirname, '../../scripts/build-content/schema.sql'), 'utf8');
+    db.run(ddl);
+    const res = db.exec("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+    const tables = res[0]!.values.map((r) => r[0]);
+    expect(tables).toEqual([
+      'grammar_examples',
+      'grammar_points',
+      'grammar_relations',
+      'kanji_points',
+      'levels',
+      'meta',
+      'text_questions',
+      'texts',
+      'vocab_points',
+    ]);
+    db.close();
+  });
+});
+
+const opts = {
+  grammarDir: resolve(__dirname, '../../content/grammar'),
+  levelsYml: resolve(__dirname, '../../content/levels.yml'),
+  schemaPath: resolve(__dirname, '../../scripts/build-content/schema.sql'),
+  kanjiDir: resolve(__dirname, '../../content/kanji'),
+  vocabDir: resolve(__dirname, '../../content/vocab'),
+  textsDir: resolve(__dirname, '../../content/texts'),
+};
+
+describe('buildContentDb', () => {
+  beforeAll(async () => {
+    await initWriter();
+  });
+
+  it('produces a db with levels and grammar rows and intact FKs', async () => {
+    const bytes = buildContentDb(opts);
+    const SQL = await initSqlJs({
+      locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
+    });
+    const db = new SQL.Database(bytes);
+
+    const levels = db.exec('SELECT count(*) FROM levels')[0]!.values[0]![0];
+    expect(levels).toBe(5);
+
+    const grammar = db.exec("SELECT count(*) FROM grammar_points WHERE level='N5'")[0]!.values[0]![0];
+    expect(grammar).toBe(43);
+
+    const grammarN4 = db.exec("SELECT count(*) FROM grammar_points WHERE level='N4'")[0]!.values[0]![0];
+    expect(grammarN4).toBe(50);
+
+    const examples = db.exec('SELECT count(*) FROM grammar_examples')[0]!.values[0]![0] as number;
+    expect(examples).toBeGreaterThanOrEqual(24);
+
+    // осиротевших связей нет
+    const orphans = db.exec(`
+      SELECT count(*) FROM grammar_relations r
+      LEFT JOIN grammar_points a ON a.id = r.from_id
+      LEFT JOIN grammar_points b ON b.id = r.to_id
+      WHERE a.id IS NULL OR b.id IS NULL
+    `)[0]!.values[0]![0];
+    expect(orphans).toBe(0);
+
+    const version = db.exec("SELECT value FROM meta WHERE key='content_version'")[0]!.values[0]![0];
+    expect(String(version)).toMatch(/\d/);
+
+    db.close();
+  });
+
+  it('produces a spot-checked N4 grammar row with related titles resolvable', async () => {
+    const bytes = buildContentDb(opts);
+    const SQL = await initSqlJs({
+      locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
+    });
+    const db = new SQL.Database(bytes);
+
+    const row = db.exec("SELECT title, layer FROM grammar_points WHERE id = 'n4-nara'")[0]!.values[0]!;
+    expect(String(row[0])).toContain('なら');
+    expect(row[1]).toBe(1);
+
+    db.close();
+  });
+
+  it('produces 81 real N5 kanji rows with readings and Russian meanings', async () => {
+    const bytes = buildContentDb(opts);
+    const SQL = await initSqlJs({
+      locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
+    });
+    const db = new SQL.Database(bytes);
+
+    const count = db.exec("SELECT count(*) FROM kanji_points WHERE level = 'N5'")[0]!.values[0]![0];
+    expect(count).toBe(81);
+
+    const row = db.exec("SELECT onyomi_json, kunyomi_json, meaning_ru, stroke_count FROM kanji_points WHERE id = 'n5-学'")[0]!.values[0]!;
+    expect(JSON.parse(String(row[0]))).toContain('ガク');
+    expect(JSON.parse(String(row[1]))).toContain('まな.ぶ');
+    expect(row[2]).toBe('учиться');
+    expect(row[3]).toBe(8);
+
+    db.close();
+  });
+
+  it('produces 177 real N4 kanji rows with readings and Russian meanings', async () => {
+    const bytes = buildContentDb(opts);
+    const SQL = await initSqlJs({
+      locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
+    });
+    const db = new SQL.Database(bytes);
+
+    const n4Count = db.exec("SELECT count(*) FROM kanji_points WHERE level = 'N4'")[0]!.values[0]![0];
+    expect(n4Count).toBe(177);
+    const n5Count = db.exec("SELECT count(*) FROM kanji_points WHERE level = 'N5'")[0]!.values[0]![0];
+    expect(n5Count).toBe(81); // unchanged by this task
+
+    const row = db.exec("SELECT onyomi_json, kunyomi_json, meaning_ru, stroke_count FROM kanji_points WHERE id = 'n4-犬'")[0]!.values[0]!;
+    expect(JSON.parse(String(row[0]))).toContain('ケン');
+    expect(JSON.parse(String(row[1]))).toContain('いぬ');
+    expect(row[2]).toBe('собака');
+    expect(row[3]).toBe(4);
+
+    db.close();
+  });
+
+  it('produces 681 real N5 vocab rows with readings and Russian meanings', async () => {
+    const bytes = buildContentDb(opts);
+    const SQL = await initSqlJs({
+      locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
+    });
+    const db = new SQL.Database(bytes);
+
+    const count = db.exec("SELECT count(*) FROM vocab_points WHERE level = 'N5'")[0]!.values[0]![0];
+    expect(count).toBe(681);
+
+    const row = db.exec("SELECT reading, pos, meaning_ru FROM vocab_points WHERE id = 'n5-学校-がっこう'")[0]!.values[0]!;
+    expect(row[0]).toBe('がっこう');
+    expect(row[1]).toBe('сущ.');
+    expect(row[2]).toBe('школа');
+
+    // the 4 known no-kanji homograph pairs got -2 suffixes, deterministically
+    const mou = db.exec("SELECT id, meaning_ru FROM vocab_points WHERE headword = 'もう' ORDER BY id")[0]!.values;
+    expect(mou.map((r) => r[0])).toEqual(['n5-もう', 'n5-もう-2']);
+
+    db.close();
+  });
+
+  it('produces 630 real N4 vocab rows with readings and Russian meanings', async () => {
+    const bytes = buildContentDb(opts);
+    const SQL = await initSqlJs({
+      locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
+    });
+    const db = new SQL.Database(bytes);
+
+    const n4Count = db.exec("SELECT count(*) FROM vocab_points WHERE level = 'N4'")[0]!.values[0]![0];
+    expect(n4Count).toBe(630);
+    const n5Count = db.exec("SELECT count(*) FROM vocab_points WHERE level = 'N5'")[0]!.values[0]![0];
+    expect(n5Count).toBe(681); // unchanged by this task
+
+    const row = db.exec("SELECT reading, pos, meaning_ru FROM vocab_points WHERE id = 'n4-会議-かいぎ'")[0]!.values[0]!;
+    expect(row[0]).toBe('かいぎ');
+    expect(row[1]).toBe('сущ.');
+    expect(row[2]).toBe('собрание, совещание');
+
+    db.close();
+  });
+
+  it('produces 6 real texts (4 N5, 2 N4) with questions and intact FKs', async () => {
+    const bytes = buildContentDb(opts);
+    const SQL = await initSqlJs({
+      locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
+    });
+    const db = new SQL.Database(bytes);
+
+    const n5Count = db.exec("SELECT count(*) FROM texts WHERE level = 'N5'")[0]!.values[0]![0];
+    expect(n5Count).toBe(4);
+    const n4Count = db.exec("SELECT count(*) FROM texts WHERE level = 'N4'")[0]!.values[0]![0];
+    expect(n4Count).toBe(2);
+
+    const row = db.exec(
+      "SELECT title, body_ruby, translation_ru FROM texts WHERE id = 'n5-kitsune-to-tsuru'",
+    )[0]!.values[0]!;
+    expect(row[0]).toBe('キツネとツル');
+    expect(String(row[1])).toContain('きつね');
+    expect(String(row[2])).toContain('журавл');
+
+    const qCount = db.exec(
+      "SELECT count(*) FROM text_questions WHERE text_id = 'n5-kitsune-to-tsuru'",
+    )[0]!.values[0]![0];
+    expect(qCount).toBe(4);
+
+    const firstQ = db.exec(
+      "SELECT prompt, choices_json, answer_index FROM text_questions WHERE text_id = 'n5-kitsune-to-tsuru' AND ord = 0",
+    )[0]!.values[0]!;
+    expect(JSON.parse(String(firstQ[1]))).toHaveLength(4);
+    expect(firstQ[2]).toBe(2);
+
+    const orphans = db.exec(`
+      SELECT count(*) FROM text_questions q
+      LEFT JOIN texts t ON t.id = q.text_id
+      WHERE t.id IS NULL
+    `)[0]!.values[0]![0];
+    expect(orphans).toBe(0);
+
+    db.close();
+  });
+
+  it('is deterministic (two builds give identical bytes)', () => {
+    const a = buildContentDb(opts);
+    const b = buildContentDb(opts);
+    expect(Buffer.from(a).equals(Buffer.from(b))).toBe(true);
+  });
+});

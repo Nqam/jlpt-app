@@ -1,0 +1,97 @@
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import type { PlatformAdapter } from '@/platform/adapter';
+import { UserDb } from '@/storage/user-db';
+import { newCard, review } from '@/core/srs';
+import { levelBars, statusCounts, streak, heatmap } from '@/core/progress';
+
+const wasm = readFileSync(createRequire(import.meta.url).resolve('sql.js/dist/sql-wasm.wasm'));
+const PARAMS = { requestRetention: 0.9, maximumInterval: 365, enableFuzz: false };
+
+function fakeAdapter(): PlatformAdapter {
+  let store: Uint8Array | null = null;
+  return {
+    platform: 'desktop',
+    async readBundledContentDb() { throw new Error('unused'); },
+    async readSqlWasm() { return new Uint8Array(wasm); },
+    async readUserDb() { return store; },
+    async writeUserDb(b: Uint8Array) { store = b.slice(); },
+    async exportUserDb() { throw new Error('unused'); },
+    async importUserDb() { throw new Error('unused'); },
+    async checkForUpdate() { return null; },
+    async openExternal() {},
+    async autoBackupUserDb() {},
+  };
+}
+function fakeContent(ids: string[]) {
+  return {
+    listLevels: () => [{ code: 'N5', status: 'available', ord: 1, titleRu: 'N5' }],
+    listGrammar: () => ids.map((id) => ({ id, level: 'N5', title: id, layer: 1 })),
+    grammarCountByLevel: () => ids.length,
+  } as unknown as import('@/storage/content-db').ContentDb;
+}
+
+const now = new Date('2026-04-01T09:00:00.000Z');
+
+describe('core/progress', () => {
+  // Pin TZ: the tests hardcode day_key strings against fixed UTC instants.
+  const savedTZ = process.env.TZ;
+  beforeAll(() => { process.env.TZ = 'Europe/Moscow'; });
+  afterAll(() => {
+    if (savedTZ === undefined) delete process.env.TZ;
+    else process.env.TZ = savedTZ;
+  });
+
+  let user: UserDb;
+  const content = fakeContent(['p1', 'p2', 'p3', 'p4']);
+  beforeEach(async () => { user = await UserDb.open(fakeAdapter(), '0.2.0', now); });
+
+  it('bars are zero on an empty db', () => {
+    expect(levelBars(user, content, 'N5')).toEqual({ studied: 0, consolidated: 0, total: 4 });
+    expect(statusCounts(user, content, 'N5')).toEqual({ new: 4, learning: 0, learned: 0, mastered: 0 });
+  });
+
+  it('a reviewed card moves into learning and lifts the studied bar', () => {
+    const c = review(newCard('grammar', 'p1', now), 3, now, 3000, PARAMS).card;
+    user.upsertCard(c);
+    const b = levelBars(user, content, 'N5');
+    expect(b.studied).toBeCloseTo(0.25);
+    const sc = statusCounts(user, content, 'N5');
+    expect(sc.new).toBe(3);
+    expect(sc.learning + sc.learned + sc.mastered).toBe(1);
+  });
+
+  it('streak: reviewed today = 1; gap yesterday = 0', () => {
+    user.insertReviewLog({
+      item_type: 'grammar', item_id: 'p1', reviewed_at: now.toISOString(),
+      day_key: '2026-04-01', rating: 3, state_before: 0, stability_after: 3, elapsed_ms: 1000,
+    });
+    expect(streak(user, now)).toEqual({ current: 1, best: 1 });
+
+    const later = new Date('2026-04-05T09:00:00.000Z');
+    expect(streak(user, later).current).toBe(0); // last review 4 days ago
+    expect(streak(user, later).best).toBe(1);
+  });
+
+  it('streak counts a run ending yesterday as still current', () => {
+    for (const d of ['2026-03-30', '2026-03-31']) {
+      user.insertReviewLog({
+        item_type: 'grammar', item_id: 'p1', reviewed_at: `${d}T09:00:00.000Z`,
+        day_key: d, rating: 3, state_before: 0, stability_after: 3, elapsed_ms: 1000,
+      });
+    }
+    expect(streak(user, now)).toEqual({ current: 2, best: 2 }); // now = 2026-04-01, run ended yesterday
+  });
+
+  it('heatmap spans the window and marks today', () => {
+    user.insertReviewLog({
+      item_type: 'grammar', item_id: 'p1', reviewed_at: now.toISOString(),
+      day_key: '2026-04-01', rating: 3, state_before: 0, stability_after: 3, elapsed_ms: 1000,
+    });
+    const cells = heatmap(user, now, 2);
+    expect(cells).toHaveLength(14);
+    expect(cells[cells.length - 1]).toEqual({ dayKey: '2026-04-01', count: 1 });
+    expect(cells[0]!.count).toBe(0);
+  });
+});

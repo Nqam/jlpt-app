@@ -1,0 +1,70 @@
+import '@testing-library/jest-dom/vitest';
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/react';
+import { MemoryRouter as BaseMemoryRouter, Routes, Route } from 'react-router-dom';
+import type { ComponentProps } from 'react';
+import { ContentDbContext } from '@/ui/ContentDbProvider';
+
+const FUTURE = { v7_startTransition: true, v7_relativeSplatPath: true } as const;
+const MemoryRouter = (props: ComponentProps<typeof BaseMemoryRouter>) => (
+  <BaseMemoryRouter future={FUTURE} {...props} />
+);
+import { VocabDetailScreen } from '@/ui/screens/VocabDetailScreen';
+import type { VocabPoint, Level } from '@/core/types';
+
+const levels: Level[] = [{ code: 'N5', ord: 1, status: 'available', titleRu: 'N5' }];
+const gakkou: VocabPoint = {
+  id: 'n5-学校-がっこう', level: 'N5', headword: '学校', reading: 'がっこう', pos: 'сущ.', meaningRu: 'школа',
+};
+const noPos: VocabPoint = {
+  id: 'n5-もう', level: 'N5', headword: 'もう', reading: 'もう', pos: '', meaningRu: 'уже',
+};
+const fakeDb = {
+  getVocab: (id: string) => {
+    if (id === gakkou.id) return gakkou;
+    if (id === noPos.id) return noPos;
+    return null;
+  },
+} as unknown as import('@/storage/content-db').ContentDb;
+
+function renderAt(path: string) {
+  return render(
+    <ContentDbContext.Provider value={{ db: fakeDb, levels }}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/vocab/:id" element={<VocabDetailScreen />} />
+        </Routes>
+      </MemoryRouter>
+    </ContentDbContext.Provider>,
+  );
+}
+
+describe('VocabDetailScreen', () => {
+  it('renders the headword with a level badge', () => {
+    const { getByRole } = renderAt('/vocab/n5-学校-がっこう');
+    expect(getByRole('heading', { name: /学校/ })).toBeInTheDocument();
+    expect(getByRole('heading', { name: /N5/ })).toBeInTheDocument();
+  });
+
+  it('shows reading, pos and meaning', () => {
+    const { getByText } = renderAt('/vocab/n5-学校-がっこう');
+    expect(getByText('がっこう')).toBeInTheDocument();
+    expect(getByText('сущ.')).toBeInTheDocument();
+    expect(getByText('школа')).toBeInTheDocument();
+  });
+
+  it('shows a not-found message for an unknown id', () => {
+    const { getByText } = renderAt('/vocab/does-not-exist');
+    expect(getByText(/не найдено/i)).toBeInTheDocument();
+  });
+
+  it('links back to the vocab list', () => {
+    const { getByRole } = renderAt('/vocab/n5-学校-がっこう');
+    expect(getByRole('link', { name: /слова/i })).toHaveAttribute('href', '/vocab');
+  });
+
+  it('shows em-dash fallback for a missing part of speech', () => {
+    const { getAllByText } = renderAt('/vocab/n5-もう');
+    expect(getAllByText('—')).toHaveLength(1);
+  });
+});
