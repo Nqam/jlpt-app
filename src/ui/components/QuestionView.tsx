@@ -28,7 +28,6 @@ export function QuestionView({
           <Furigana
             text={question.answerOrder.map((i) => question.tokens[i]).join(' ')}
           />
-          <span className="q-translation"> — {question.translationRu}</span>
         </p>
       )}
       {showExplainLink && (
@@ -104,6 +103,9 @@ export function QuestionView({
   return (
     <div className="q q-assemble">
       <p className="q-prompt">{question.prompt}</p>
+      {question.translationRu && (
+        <p className="q-translation q-cloze-translation">«{question.translationRu}»</p>
+      )}
       <div className="q-line">
         {pickedOrder.map((tokenIdx, pos) => (
           <button

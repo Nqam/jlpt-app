@@ -85,6 +85,11 @@ describe('QuestionView', () => {
     expect(screen.queryByRole('link', { name: /подробнее/i })).toBeNull();
   });
 
+  it('assemble: shows the target translation before the answer is submitted', () => {
+    render(<QuestionView question={assemble} onAnswer={vi.fn()} revealed={null} />);
+    expect(screen.getByText('«Я студент.»')).toBeInTheDocument();
+  });
+
   it('assemble: Готово is disabled until all tokens are placed, then reports the order', () => {
     const onAnswer = vi.fn();
     render(<QuestionView question={assemble} onAnswer={onAnswer} revealed={null} />);

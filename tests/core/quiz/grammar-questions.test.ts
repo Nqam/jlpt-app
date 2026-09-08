@@ -165,6 +165,15 @@ describe('genAssemble', () => {
     expect(genAssemble(point(), others, 's')).toBeNull();
   });
 
+  it('skips an example with no translation (assemble always shows the meaning)', () => {
+    const p = point({
+      examples: [
+        { jaRuby: '私[わたし]は 毎日[まいにち] 日本語[にほんご]を 勉強[べんきょう]します。', ru: '' },
+      ],
+    });
+    expect(genAssemble(p, others, 's')).toBeNull();
+  });
+
   it('is deterministic', () => {
     expect(genAssemble(p4, others, 's')).toEqual(genAssemble(p4, others, 's'));
   });

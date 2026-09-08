@@ -156,7 +156,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .status-dot-learning { background: var(--heat-2); }
 .status-dot-learned { background: var(--heat-3); }
 .status-dot-mastered { background: var(--heat-4); }
-.placement-entry { margin: 0 0 12px; }
+.placement-entry { display: block; width: fit-content; margin: 6px 0 18px; }
 
 .streak { font-size: 0.95rem; margin: 0.6rem 0; }
 .progress-category { margin-top: 1.5rem; }

@@ -105,6 +105,7 @@ export const genCloze: GrammarGenerator = (point, levelPoints, seed) => {
   type Hit = { idx: number; core: string; segs: RubySegment[]; si: number; ctx: number };
   const hits: Hit[] = [];
   point.examples.forEach((ex, idx) => {
+    if (!ex.ru.trim()) return; // cloze always shows a translation for context
     const segs = parseRuby(ex.jaRuby);
     for (const core of cands) {
       const si = segs.findIndex(
@@ -120,12 +121,7 @@ export const genCloze: GrammarGenerator = (point, levelPoints, seed) => {
   });
   if (!hits.length) return null;
 
-  hits.sort(
-    (a, b) =>
-      b.ctx - a.ctx ||
-      Number(!!point.examples[b.idx]!.ru) - Number(!!point.examples[a.idx]!.ru) ||
-      a.idx - b.idx,
-  );
+  hits.sort((a, b) => b.ctx - a.ctx || a.idx - b.idx);
   const { idx, core, segs, si } = hits[0]!;
   const seg = segs[si]!;
   const at = seg.base.indexOf(core);
@@ -165,6 +161,7 @@ export const genChoice: GrammarGenerator = (point, levelPoints, seed) => {
 
 export const genAssemble: GrammarGenerator = (point, _levelPoints, seed) => {
   for (const ex of seededShuffle(point.examples, seed)) {
+    if (!ex.ru.trim()) continue; // assemble always shows the target meaning
     const toks = ex.jaRuby.trim().split(/\s+/);
     if (toks.length < 4) continue;
     let perm = seededShuffle([...toks.keys()], `${seed}:t`);
