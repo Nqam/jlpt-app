@@ -9,6 +9,8 @@ import {
 } from '@/core/placement';
 import type { ContentDb, GrammarPointFull } from '@/storage/content-db';
 
+const ALL = new Set(['N5', 'N4', 'N3', 'N2', 'N1']);
+
 /**
  * `layer: i + 1` makes `availableItemIds`'s (level.ord, layer, id) sort return the
  * ids in exactly the given array order — the same fixture shape session.test.ts
@@ -34,7 +36,7 @@ function runToCompletion(
   content: ContentDb,
   correctFor: (itemId: string) => boolean,
 ): { final: PlacementState; asked: string[] } {
-  let state = initPlacement(content);
+  let state = initPlacement(content, ALL);
   const asked: string[] = [];
   while (!isPlacementDone(state)) {
     const step = nextPlacementQuestion(state, content, 'test');
@@ -88,7 +90,7 @@ describe('core/placement', () => {
 
   it('a wrong answer counts immediately: the failed item is not in the frontier and is not re-asked', () => {
     const content = fakeContent(ids);
-    let state = initPlacement(content); // lo=0, hi=8
+    let state = initPlacement(content, ALL); // lo=0, hi=8
     const first = nextPlacementQuestion(state, content, 'test')!;
     expect(first.itemId).toBe('p5'); // idx 4
     state = applyPlacementAnswer(state, false); // wrong -> hi = 4, no second try
@@ -101,7 +103,7 @@ describe('core/placement', () => {
 
   it('a single correct answer advances the frontier by one (no confirmation step)', () => {
     const content = fakeContent(ids);
-    let state = initPlacement(content); // lo=0, hi=8, idx 4
+    let state = initPlacement(content, ALL); // lo=0, hi=8, idx 4
     state = applyPlacementAnswer(state, true);
     expect(state.lo).toBe(5);
     expect(state.hi).toBe(8);
@@ -116,7 +118,7 @@ describe('core/placement', () => {
 
   it('generates a real grammar question via generateForCard', () => {
     const content = fakeContent(ids);
-    const state = initPlacement(content);
+    const state = initPlacement(content, ALL);
     const step = nextPlacementQuestion(state, content, 'test');
     expect(step).not.toBeNull();
     expect(step!.question.itemType).toBe('grammar');
@@ -126,7 +128,7 @@ describe('core/placement', () => {
 
   it('is immediately done with an empty frontier when no grammar is available', () => {
     const content = fakeContent([]);
-    const state = initPlacement(content);
+    const state = initPlacement(content, ALL);
     expect(isPlacementDone(state)).toBe(true);
     expect(nextPlacementQuestion(state, content, 'test')).toBeNull();
     expect(placementFrontierIds(state)).toEqual([]);

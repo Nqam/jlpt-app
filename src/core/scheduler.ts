@@ -3,6 +3,7 @@ import type { ContentDb } from '@/storage/content-db';
 import type { ItemType } from '@/core/types';
 import { startOfLocalDay, endOfLocalDay, toUtcIso, localDayKey } from '@/core/time';
 import { statusOf } from '@/core/srs';
+import { availableLevelCodes } from '@/core/levels';
 
 export type { ItemType };
 
@@ -57,11 +58,13 @@ const LEVEL_EXTRACTORS: Record<
  */
 const ITEM_TYPES: readonly ItemType[] = Object.keys(LEVEL_EXTRACTORS) as readonly ItemType[];
 
-/** Every id of `itemType` in an `available` level, in new-card introduction order. */
-export function availableItemIds(content: ContentDb, itemType: ItemType): string[] {
+/** Every id of `itemType` in an effective-available level, in new-card introduction order. */
+export function availableItemIds(
+  content: ContentDb, itemType: ItemType, availableCodes: ReadonlySet<string>,
+): string[] {
   const ids: { id: string; ord: number; layer: number }[] = [];
   for (const lvl of content.listLevels()) {
-    if (lvl.status !== 'available') continue;
+    if (!availableCodes.has(lvl.code)) continue;
     for (const p of LEVEL_EXTRACTORS[itemType](content, lvl.code)) {
       ids.push({ id: p.id, ord: lvl.ord, layer: p.layer });
     }
@@ -93,7 +96,10 @@ interface TypeContext {
   introducedToday: number;
 }
 
-function typeContext(user: UserDb, content: ContentDb, now: Date, itemType: ItemType): TypeContext {
+function typeContext(
+  user: UserDb, content: ContentDb, now: Date, itemType: ItemType,
+  availableCodes: ReadonlySet<string>,
+): TypeContext {
   const endIso = toUtcIso(endOfLocalDay(now));
   const startIso = toUtcIso(startOfLocalDay(now));
   // Drop cards whose content id no longer exists (renamed/removed point): the
@@ -110,7 +116,7 @@ function typeContext(user: UserDb, content: ContentDb, now: Date, itemType: Item
   const nextDueAt = future.length ? future[0]! : null;
 
   const known = new Set(cards.map((c) => c.item_id));
-  const unknownAvailable = availableItemIds(content, itemType).filter((id) => !known.has(id));
+  const unknownAvailable = availableItemIds(content, itemType, availableCodes).filter((id) => !known.has(id));
   const introducedToday = user.introducedOnOrAfter(startIso, itemType);
 
   return { dueSorted, nextDueAt, unknownAvailable, introducedToday };
@@ -170,9 +176,10 @@ interface Split {
 
 function split(user: UserDb, content: ContentDb, now: Date): Split {
   const { newPerDay, cap } = settings(user);
+  const availableCodes = availableLevelCodes(user, content, now);
 
   const ctx = Object.fromEntries(
-    ITEM_TYPES.map((t) => [t, typeContext(user, content, now, t)]),
+    ITEM_TYPES.map((t) => [t, typeContext(user, content, now, t, availableCodes)]),
   ) as Record<ItemType, TypeContext>;
 
   // Merge all due cards across types, globally sorted by due date, capped once

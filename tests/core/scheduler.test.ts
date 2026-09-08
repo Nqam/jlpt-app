@@ -104,6 +104,10 @@ describe('core/scheduler', () => {
   });
 
   it('exhausts an earlier level (by ord) before offering a later level, even when ids tie by layer', () => {
+    // N4 auto-locks for a fresh 0%-completion user; unlock it so this test
+    // actually exercises the level-ord-first sort rather than passing vacuously
+    // because N4 content is gated out entirely.
+    user.setSetting('unlocked_levels', ['N4']);
     const q = buildQueue(user, fakeMultiLevelContent(), now);
     const ids = q.map((i) => i.itemId);
     expect(ids).toHaveLength(5); // default new_per_day

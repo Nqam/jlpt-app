@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { UserDb } from '@/storage/user-db';
 import { newCard, review } from '@/core/srs';
 import { effectiveLevelStatus, availableLevelCodes, unlockLevel, UNLOCK_THRESHOLD } from '@/core/levels';

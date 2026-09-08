@@ -16,8 +16,8 @@ export interface PlacementState {
  * грамматики (level.ord -> layer -> id), что уже использует ежедневная очередь.
  * Только грамматика — кандзи/слова не участвуют (см. спеку плана 4e).
  */
-export function initPlacement(content: ContentDb): PlacementState {
-  const ids = availableItemIds(content, 'grammar');
+export function initPlacement(content: ContentDb, availableCodes: ReadonlySet<string>): PlacementState {
+  const ids = availableItemIds(content, 'grammar', availableCodes);
   return { ids, lo: 0, hi: ids.length, askedCount: 0 };
 }
 

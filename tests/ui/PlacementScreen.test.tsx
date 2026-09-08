@@ -18,6 +18,12 @@ vi.mock('@/ui/useUserDb', () => ({
   }),
 }));
 vi.mock('@/ui/useContentDb', () => ({ useContentDb: () => ({}) }));
+// The screen now derives the available level codes before building placement
+// state; `initPlacement` is mocked below and ignores them, so a static set is
+// enough to keep the (stubbed) content db out of `availableLevelCodes`.
+vi.mock('@/core/levels', () => ({
+  availableLevelCodes: () => new Set(['N5', 'N4', 'N3', 'N2', 'N1']),
+}));
 
 function choiceQ(id: string, itemId: string): ChoiceQuestion {
   return {

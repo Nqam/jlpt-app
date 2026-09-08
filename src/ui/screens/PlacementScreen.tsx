@@ -10,6 +10,7 @@ import {
   placementFrontierIds,
   type PlacementState,
 } from '@/core/placement';
+import { availableLevelCodes } from '@/core/levels';
 import { QuestionView } from '@/ui/components/QuestionView';
 import { grade } from '@/core/quiz/grade';
 import { newCard, review } from '@/core/srs';
@@ -20,7 +21,9 @@ export function PlacementScreen() {
   const content = useContentDb();
   const navigate = useNavigate();
 
-  const [state, setState] = useState<PlacementState>(() => initPlacement(content));
+  const [state, setState] = useState<PlacementState>(() =>
+    initPlacement(content, availableLevelCodes(user, content, new Date())),
+  );
   const [graded, setGraded] = useState<GradedAnswer | null>(null);
   const [markedCount, setMarkedCount] = useState<number | null>(null);
   const appliedRef = useRef(false);
