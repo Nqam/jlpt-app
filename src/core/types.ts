@@ -82,3 +82,54 @@ export interface TextPoint {
   translationRu: string;
   questions: TextQuestion[];
 }
+
+export type LessonKind = 'text' | 'dialogue';
+export type LessonItemRole = 'introduce' | 'review';
+
+export interface LessonQuestion {
+  /** Текст вопроса на русском. */
+  prompt: string;
+  /** 3-4 варианта ответа на русском. */
+  choices: string[];
+  /** Индекс верного варианта в `choices`. */
+  answerIndex: number;
+}
+
+export interface LessonIntroduce {
+  type: ItemType;
+  id: string;
+  role: LessonItemRole;
+}
+
+export interface LessonMarker {
+  type: ItemType;
+  id: string;
+  /** Видимый текст inline-маркера в теле урока (по нему рендер вешает тап-обработчик). */
+  surface: string;
+  /** Предложение из тела, содержащее маркер, в записи фуриганы (маркеры развёрнуты). */
+  sentenceRuby: string;
+  /** Соответствующий абзац перевода, если однозначен; иначе "". */
+  sentenceRu: string;
+}
+
+export interface LessonMeta {
+  id: string;
+  /** Сквозной порядок в курсе, тоньше уровней N5/N4. Уникален. */
+  stage: number;
+  kind: LessonKind;
+  title: string;
+  /** Число пунктов с role='introduce'. 0 — свободное чтение. */
+  introducesCount: number;
+  /** `introducesCount === 0` — урок не гейтит прогресс курса. */
+  isFreeReading: boolean;
+}
+
+export interface LessonFull extends LessonMeta {
+  /** Японское тело в записи фуриганы ("кандзи[чтение]"), маркеры развёрнуты, абзацы через "\n\n". */
+  bodyRuby: string;
+  /** Русский перевод, столько же абзацев, сколько в bodyRuby. */
+  translationRu: string;
+  questions: LessonQuestion[];
+  introduces: LessonIntroduce[];
+  markers: LessonMarker[];
+}
