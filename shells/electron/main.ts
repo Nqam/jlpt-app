@@ -4,6 +4,7 @@ import { readFile, writeFile, rename, mkdir, rm, readdir, unlink } from 'node:fs
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { isSafeExternalUrl } from './safe-url';
+import { pinnedUserDataDir } from './user-data-dir';
 import { backupFileName, backupsToPrune } from '../../src/core/backup';
 
 // isDev — про транспорт рендерера (dev-сервер vs собранный index.html);
@@ -12,12 +13,11 @@ import { backupFileName, backupsToPrune } from '../../src/core/backup';
 // !isDev && !isPackaged, и оба пути должны работать.
 const isDev = !!process.env['ELECTRON_RENDERER_URL'];
 
-// Имя приложения сменилось на «Kotsukotsu», но `%APPDATA%/JLPT/` уже хранит
-// user.db существующих пользователей. Пиним каталог данных под старым именем,
-// чтобы прогресс пережил переименование. `--user-data-dir` (e2e) не трогаем.
-if (!process.argv.some((a) => a.startsWith('--user-data-dir'))) {
-  app.setPath('userData', join(app.getPath('appData'), 'JLPT'));
-}
+// Каталог данных пиним под старым именем «JLPT», чтобы прогресс (user.db)
+// пережил переименование в «Kotsukotsu» и все будущие обновления. Логика и
+// обоснование — в ./user-data-dir.ts (покрыто тестом).
+const pinnedDir = pinnedUserDataDir(process.argv, app.getPath('appData'));
+if (pinnedDir) app.setPath('userData', pinnedDir);
 
 /** Путь к поставляемому `content.db`: dev — `resources/` в корне репо, prod — `process.resourcesPath`. */
 function contentDbPath(): string {
