@@ -313,3 +313,14 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .course-item-state { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
 .course-item-state[data-state='current'] { color: var(--accent); font-weight: 600; }
 .course-item-state[data-state='done'] { color: var(--ok); }
+
+.flashcard {
+  border: 1px solid var(--border); border-radius: 0.5rem; padding: 1.25rem;
+  display: flex; flex-direction: column; gap: 0.75rem; align-items: center; text-align: center;
+}
+.flashcard-word { font-size: 1.6rem; font-family: var(--font-ja); }
+.flashcard-kanji { font-size: 2.4rem; }
+.flashcard-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; }
+.lesson-new { display: flex; flex-direction: column; gap: 1rem; }
+.lesson-new-grammar { border-left: 3px solid var(--accent); padding-left: 0.75rem; }
+.lesson-new-grammar h3 { margin: 0 0 0.25rem; font-size: 1rem; }
