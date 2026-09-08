@@ -53,10 +53,19 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .nav[data-variant='bottom'] .nav-link { flex-direction: column; gap: 2px; font-size: 11px; padding: 4px 8px; }
 .nav[data-variant='bottom'] .nav-link--settings { display: none; }
 .app-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+/* Content follows the window: fill the available column up to a readable
+   ceiling, with side padding that scales with viewport width. */
+.screen, .today, .review, .progress, .placement, .settings, .text-detail {
+  width: 100%; margin: 0 auto;
+}
+/* Long unbroken Japanese runs must wrap inside their column, not overflow it. */
+.q-sentence, .q-prompt, .grammar-md, .text-body, .example-ja,
+.grammar-list-title, .text-list-title, .vocab-headword { overflow-wrap: anywhere; }
+.grammar-list-title, .text-list-title { min-width: 0; }
 .app-header { display: flex; align-items: center; justify-content: space-between;
   padding: 12px 20px; border-bottom: 1px solid var(--border); }
 .app-brand { font-family: var(--font-ja); font-weight: 700; letter-spacing: 0.12em; color: var(--accent); }
-.screen { padding: 20px; max-width: 780px; }
+.screen { padding: 20px clamp(16px, 3vw, 44px); max-width: min(72rem, 100%); }
 .muted, .loading, .fatal { color: var(--muted); }
 .fatal { padding: 24px; color: var(--bad); }
 .furigana { font-family: var(--font-ja); line-height: 2; }
@@ -87,7 +96,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .example-ja { font-size: 1.2rem; }
 .example-ru { color: var(--muted); margin-top: 2px; }
 
-.today { max-width: 32rem; margin: 0 auto; padding: 2rem 1rem; text-align: center; }
+.today { max-width: min(40rem, 100%); padding: 2rem clamp(1rem, 3vw, 2.5rem); text-align: center; }
 .today-line { font-size: 1.1rem; margin: 1rem 0; }
 .today-hint { color: var(--muted); font-size: 0.9rem; }
 .btn-primary {
@@ -96,7 +105,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
   font-size: 1.1rem; text-decoration: none;
 }
 
-.review { max-width: 40rem; margin: 0 auto; padding: 2rem 1rem;
+.review { max-width: min(52rem, 100%); padding: 2rem clamp(1rem, 3vw, 2.5rem);
   display: flex; flex-direction: column; align-items: center; text-align: center; }
 .review-progress { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
 .review-learn, .review-face, .review-revealed { width: 100%; }
@@ -125,7 +134,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 @media (min-width: 600px) { .rating-row { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 767px) { .app-shell { flex-direction: column; } .app-main { padding-bottom: 64px; } }
 
-.progress { max-width: 40rem; margin: 0 auto; padding: 2rem 1rem; }
+.progress { max-width: min(52rem, 100%); padding: 2rem clamp(1rem, 3vw, 2.5rem); }
 .progress h1 { margin: 0 0 1rem; }
 .progress h2 { font-size: 1rem; margin: 1.6rem 0 0.6rem; }
 
@@ -209,13 +218,13 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .kanji-detail-readings dd { margin: 0 0 4px; }
 .learn-kanji { text-align: center; }
 .learn-kanji-char { font-size: 3.5rem; }
-.learn-kanji-readings { text-align: left; max-width: 260px; margin: 12px auto; }
+.learn-kanji-readings { text-align: left; max-width: min(24rem, 100%); margin: 12px auto; }
 .learn-kanji-readings dt { font-weight: 600; margin-top: 8px; }
 .learn-kanji-readings dd { margin: 0 0 4px; }
 .learn-kanji-meaning { font-size: 1.1rem; }
 .learn-vocab { text-align: center; }
 .learn-vocab-headword { font-size: 2.4rem; }
-.learn-vocab-fields { text-align: left; max-width: 260px; margin: 12px auto; }
+.learn-vocab-fields { text-align: left; max-width: min(24rem, 100%); margin: 12px auto; }
 .learn-vocab-fields dt { font-weight: 600; margin-top: 8px; }
 .learn-vocab-fields dd { margin: 0 0 4px; }
 .learn-vocab-meaning { font-size: 1.1rem; }
@@ -229,7 +238,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .vocab-detail-fields dt { font-weight: 600; margin-top: 8px; }
 .vocab-detail-fields dd { margin: 0 0 4px; }
 
-.settings { max-width: 32rem; }
+.settings { max-width: min(44rem, 100%); }
 .settings-field { margin: 1rem 0; display: flex; flex-direction: column; gap: 4px; }
 .settings-field label { font-weight: 500; }
 .settings-field input[type="number"] {
@@ -246,7 +255,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .settings-update-available { margin-top: 0.8rem; display: flex; flex-direction: column;
   align-items: flex-start; gap: 0.4rem; }
 
-.placement { max-width: 40rem; margin: 0 auto; padding: 2rem 1rem;
+.placement { max-width: min(52rem, 100%); padding: 2rem clamp(1rem, 3vw, 2.5rem);
   display: flex; flex-direction: column; align-items: center; text-align: center; }
 .placement-done p { font-size: 1.1rem; margin: 1rem 0; }
 .placement-counter { color: var(--muted); font-size: 0.85rem; margin: 0 0 1rem; }
@@ -264,7 +273,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .text-list-title { flex: 1; font-weight: 500; }
 .text-read-badge { color: var(--ok); font-weight: 700; }
 
-.text-detail { max-width: 40rem; }
+.text-detail { max-width: min(52rem, 100%); }
 .text-body { font-family: var(--font-ja); line-height: 2; margin: 1rem 0; }
 .text-paragraph { margin: 0 0 1em; }
 .text-translation { color: var(--muted); margin: 1rem 0; }
