@@ -21,7 +21,7 @@ export function LessonScreen() {
   const lesson = useMemo(() => db.getLesson(id), [db, id]);
   const metas = useMemo(() => db.listLessons(), [db]);
 
-  const hasIntroduces = (lesson?.introduces.length ?? 0) > 0;
+  const hasIntroduces = lesson ? !lesson.isFreeReading : false;
   // Free-reading lessons have no New/Reinforce steps.
   const isSkipped = (step: number) => !hasIntroduces && (step === 0 || step === 3);
 
@@ -38,6 +38,14 @@ export function LessonScreen() {
     const s = clampFrom(next);
     setStep(s);
     if (s < LAST_STEP) setCourseStep(user, id, s);
+  };
+
+  const goBack = () => {
+    let s = step - 1;
+    while (s > 0 && isSkipped(s)) s -= 1;
+    if (s < 0) s = 0;
+    setStep(s);
+    setCourseStep(user, id, s);
   };
 
   useEffect(() => {
@@ -67,6 +75,10 @@ export function LessonScreen() {
         <Link to="/course" className="back-link">← К курсу</Link>
       )}
       <h1>{lesson.title}</h1>
+
+      {step >= 1 && step <= 3 && (
+        <button type="button" className="btn-ghost lesson-back" onClick={goBack}>← Назад</button>
+      )}
 
       {step === 0 && (
         <LessonNewStep introduces={lesson.introduces} onDone={() => go(1)} />

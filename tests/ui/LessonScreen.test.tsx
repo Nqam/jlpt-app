@@ -95,6 +95,17 @@ describe('LessonScreen', () => {
     }));
   });
 
+  it('a "← Назад" from Comprehension returns to the reader and persists the lower step', () => {
+    renderAt('/lesson/n5-hanami');
+    fireEvent.click(screen.getByRole('button', { name: /Дальше|Далее/ })); // Read -> Comprehension
+    expect(screen.getByText('Что цветёт?')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /← Назад/ }));
+    expect(screen.getByRole('button', { name: 'Показать перевод' })).toBeInTheDocument();
+    expect(setSetting).toHaveBeenCalledWith('course_progress', expect.objectContaining({
+      'n5-hanami': { step: 1 },
+    }));
+  });
+
   it('resumes at the persisted step', () => {
     store.progress = { 'n5-hanami': { step: 2 } };
     renderAt('/lesson/n5-hanami');

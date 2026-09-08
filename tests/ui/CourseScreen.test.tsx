@@ -73,14 +73,17 @@ describe('CourseScreen', () => {
   });
 
   it('with only free-reading lessons every item is a reading link and there is no "Продолжить"', () => {
-    (fakeDb as unknown as { listLessons: () => LessonMeta[] }).listLessons = () => [
-      lm('a', 2, false), lm('b', 40, false),
-    ];
-    const { queryByRole, container } = renderScreen();
-    expect(queryByRole('link', { name: /Продолжить/ })).toBeNull();
-    expect([...container.querySelectorAll('.course-item')].every(
-      (el) => el.getAttribute('data-state') === 'unlocked-reading',
-    )).toBe(true);
-    (fakeDb as unknown as { listLessons: () => LessonMeta[] }).listLessons = () => lessons;
+    try {
+      (fakeDb as unknown as { listLessons: () => LessonMeta[] }).listLessons = () => [
+        lm('a', 2, false), lm('b', 40, false),
+      ];
+      const { queryByRole, container } = renderScreen();
+      expect(queryByRole('link', { name: /Продолжить/ })).toBeNull();
+      expect([...container.querySelectorAll('.course-item')].every(
+        (el) => el.getAttribute('data-state') === 'unlocked-reading',
+      )).toBe(true);
+    } finally {
+      (fakeDb as unknown as { listLessons: () => LessonMeta[] }).listLessons = () => lessons;
+    }
   });
 });

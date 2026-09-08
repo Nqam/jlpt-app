@@ -12,7 +12,8 @@ import { writeSeededUserDb } from './helpers/seed-user-db';
 //
 // Since Plan 4g N4 also auto-locks for a fresh user (0% N5 completion), so
 // each test seeds its own profile with `unlocked_levels: ['N4']` to force
-// N4 available -- mirroring texts-browse.spec.ts's per-test --user-data-dir.
+// N4 available -- mirroring the per-test --user-data-dir pattern used across
+// the e2e suite (e.g. course.spec.ts).
 
 test('N4 tab shows a real grammar list, not "coming soon"', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'jlpt-e2e-n4-grammar-'));

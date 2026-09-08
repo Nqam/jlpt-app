@@ -68,7 +68,7 @@ export function courseLessonStates(
     .filter((l) => completedIds.has(l.id))
     .map((l) => l.stage);
   const ceiling = current
-    ? Math.max(current.stage, ...completedStages, current.stage)
+    ? Math.max(current.stage, ...completedStages)
     : null;
 
   // A mandatory lesson is unlocked iff every earlier mandatory lesson is done.

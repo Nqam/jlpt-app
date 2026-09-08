@@ -4,7 +4,7 @@ import type { Question } from '@/core/quiz/types';
 import { generateOfKind } from '@/core/quiz/registry';
 import { genVocabMeaning, genVocabReading } from '@/core/quiz/vocab-questions';
 import { genKanjiMeaning, genKanjiReading } from '@/core/quiz/kanji-questions';
-import { levelPointsFor } from '@/core/session';
+import { levelPointsFor } from '@/core/quiz/level-points';
 
 export type ReinforceContent = Pick<
   ContentDb,
@@ -47,6 +47,7 @@ export function buildReinforceQuestions(
   seed: string,
 ): ReinforceItem[] {
   const out: ReinforceItem[] = [];
+  const levelPtsCache = new Map<string, GrammarPointFull[]>();
   for (const it of lesson.introduces) {
     if (out.length >= MAX_QUESTIONS) break;
     if (it.role !== 'introduce') continue;
@@ -56,7 +57,11 @@ export function buildReinforceQuestions(
     if (it.type === 'grammar') {
       const real = content.getGrammar(it.id);
       if (!real) continue;
-      const levelPts = levelPointsFor(content as ContentDb, real.level);
+      let levelPts = levelPtsCache.get(real.level);
+      if (!levelPts) {
+        levelPts = levelPointsFor(content, real.level);
+        levelPtsCache.set(real.level, levelPts);
+      }
       try {
         const q = generateOfKind('cloze', syntheticGrammarPoint(real, mk), levelPts, qSeed);
         out.push({ question: q, contextRu: mk?.sentenceRu ?? '' });

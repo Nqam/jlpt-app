@@ -88,6 +88,17 @@ describe('courseLessonStates gating', () => {
     expect(currentMandatoryLessonId(free, new Set())).toBeNull();
   });
 
+  it('does not gate by JLPT level — a high-stage free-reading lesson is unlocked when there is no mandatory spine', () => {
+    // courseLessonStates takes no level / unlock-set input: the plan-4g 90% N4
+    // rule governs the SRS reference sections, never graded-reading lessons.
+    // Stages here span what would be N5..N4..beyond; all must be readable.
+    const free = [meta('a', 2, false), meta('b', 42, false), meta('c', 52, false)];
+    const s = courseLessonStates(free, new Set());
+    expect([...s.values()]).toEqual([
+      'unlocked-reading', 'unlocked-reading', 'unlocked-reading',
+    ]);
+  });
+
   it('currentMandatoryLessonId is the first uncompleted mandatory in (stage,id) order', () => {
     expect(currentMandatoryLessonId(lessons, new Set())).toBe('m1');
     expect(currentMandatoryLessonId(lessons, new Set(['m1']))).toBe('m2');

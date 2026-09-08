@@ -9,6 +9,9 @@ import { generateVocabQuestion } from '@/core/quiz/vocab-questions';
 import { statusOf } from '@/core/srs';
 import { localDayKey } from '@/core/time';
 import { seededShuffle } from '@/core/quiz/rng';
+import { levelPointsFor } from '@/core/quiz/level-points';
+
+export { levelPointsFor };
 
 export type SessionStep =
   | { phase: 'learn'; itemType: ItemType; itemId: string }
@@ -18,14 +21,6 @@ export type SessionStep =
       question: Question;
     }
   | { phase: 'minitest'; question: Question; sourceItemId: string; index: number };
-
-/** All grammar points of a level, fully loaded — shared with ReviewScreen's retry round. */
-export function levelPointsFor(content: ContentDb, level: string): GrammarPointFull[] {
-  return content
-    .listGrammar(level)
-    .map((g) => content.getGrammar(g.id))
-    .filter((p): p is GrammarPointFull => p !== null);
-}
 
 export function buildDailySession(user: UserDb, content: ContentDb, now: Date): SessionStep[] {
   const dayKey = localDayKey(now);

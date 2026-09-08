@@ -15,8 +15,14 @@ async function launch() {
 
 test('the "Курс" nav item opens /course and lists the migrated lessons as free reading', async () => {
   const { app, win } = await launch();
+  await win.setViewportSize({ width: 380, height: 800 });
   await win.getByRole('link', { name: /Курс/ }).click();
   await expect(win.getByRole('heading', { name: 'Курс' })).toBeVisible();
+  // the course list screen fits a narrow window with no horizontal overflow
+  const listOverflow = await win.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(listOverflow).toBeLessThanOrEqual(1);
   // 15 migrated lessons, all free reading, all unlocked
   await expect(win.locator('.course-item')).toHaveCount(15);
   await expect(win.locator('.course-item[data-state="unlocked-reading"]')).toHaveCount(15);
