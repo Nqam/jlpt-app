@@ -40,7 +40,7 @@ test('N4 tab shows a real vocab list, not "coming soon"', async () => {
   await win.getByRole('link', { name: /Слова/ }).click();
   await win.getByRole('tab', { name: /^N4$/ }).click();
   await expect(win.getByText(/появится скоро/i)).toHaveCount(0);
-  await expect(win.locator('.vocab-list-item')).toHaveCount(630);
+  await expect(win.locator('.vocab-list-item')).toHaveCount(625);
 
   await app.close();
 });

@@ -25,7 +25,7 @@ test('browse texts: list -> detail -> reveal translation -> answer questions -> 
   await expect(win.getByRole('heading', { name: 'Тексты' })).toBeVisible();
 
   const items = win.locator('.text-list-item');
-  await expect(items).toHaveCount(4); // 4 N5 texts
+  await expect(items).toHaveCount(9); // 9 N5 texts
 
   await win.getByRole('link', { name: /キツネとツル/ }).click();
   await expect(win.getByRole('heading', { name: 'キツネとツル' })).toBeVisible();
@@ -60,7 +60,7 @@ test('switching to the N4 tab shows N4 texts', async () => {
 
   await win.getByRole('link', { name: /Тексты/ }).click();
   await win.getByRole('tab', { name: 'N4' }).click();
-  await expect(win.locator('.text-list-item')).toHaveCount(2);
+  await expect(win.locator('.text-list-item')).toHaveCount(6);
 
   await app.close();
 });

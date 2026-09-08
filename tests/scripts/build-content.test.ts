@@ -176,7 +176,7 @@ describe('buildContentDb', () => {
     db.close();
   });
 
-  it('produces 6 real texts (4 N5, 2 N4) with questions and intact FKs', async () => {
+  it('produces 15 real texts (9 N5, 6 N4) with questions and intact FKs', async () => {
     const bytes = buildContentDb(opts);
     const SQL = await initSqlJs({
       locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
@@ -184,9 +184,9 @@ describe('buildContentDb', () => {
     const db = new SQL.Database(bytes);
 
     const n5Count = db.exec("SELECT count(*) FROM texts WHERE level = 'N5'")[0]!.values[0]![0];
-    expect(n5Count).toBe(4);
+    expect(n5Count).toBe(9);
     const n4Count = db.exec("SELECT count(*) FROM texts WHERE level = 'N4'")[0]!.values[0]![0];
-    expect(n4Count).toBe(2);
+    expect(n4Count).toBe(6);
 
     const row = db.exec(
       "SELECT title, body_ruby, translation_ru FROM texts WHERE id = 'n5-kitsune-to-tsuru'",

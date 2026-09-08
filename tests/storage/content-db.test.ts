@@ -218,18 +218,18 @@ describe('ContentDb', () => {
     expect(hits.length).toBe(5);
   });
 
-  it('lists all 4 N5 texts sorted by id', () => {
+  it('lists all 9 N5 texts sorted by id', () => {
     const t = db.listTexts('N5');
-    expect(t).toHaveLength(4);
+    expect(t).toHaveLength(9);
     for (let i = 1; i < t.length; i++) expect(t[i]!.id >= t[i - 1]!.id).toBe(true);
     expect(t[0]!.bodyRuby).toBe('');
     expect(t[0]!.questions).toEqual([]);
   });
 
-  it('lists all 2 N4 texts sorted by id, independently of N5', () => {
+  it('lists all 6 N4 texts sorted by id, independently of N5', () => {
     const n4 = db.listTexts('N4');
-    expect(n4).toHaveLength(2);
-    expect(db.listTexts('N5')).toHaveLength(4); // unaffected by N4 landing
+    expect(n4).toHaveLength(6);
+    expect(db.listTexts('N5')).toHaveLength(9); // unaffected by N4 landing
   });
 
   it('gets a full text with body, translation and questions', () => {
