@@ -2,6 +2,7 @@ import { test, expect, _electron as electron } from '@playwright/test';
 import { join } from 'node:path';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { writeSeededUserDb } from './helpers/seed-user-db';
 
 // Each test gets its own fresh --user-data-dir (mirroring persist.spec.ts /
 // placement.spec.ts / kanji-review.spec.ts): unlike Chromium, Playwright's
@@ -52,6 +53,8 @@ test('browse texts: list -> detail -> reveal translation -> answer questions -> 
 
 test('switching to the N4 tab shows N4 texts', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'jlpt-e2e-texts-n4-'));
+  // N4 auto-locks for a fresh user (Plan 4g); force it open so the N4 tab lists.
+  await writeSeededUserDb(userData, { learnedIds: [], dueIds: [], unlockedLevels: ['N4'] });
   const app = await electron.launch({
     args: [join(process.cwd(), 'out/main/main.js'), `--user-data-dir=${userData}`],
   });

@@ -32,7 +32,13 @@ const DEFAULT_SETTINGS: Record<string, unknown> = {
 
 export async function writeSeededUserDb(
   userDataDir: string,
-  opts: { learnedIds: string[]; dueIds: string[]; newPerDay?: number; placementOffered?: boolean },
+  opts: {
+    learnedIds: string[];
+    dueIds: string[];
+    newPerDay?: number;
+    placementOffered?: boolean;
+    unlockedLevels?: string[];
+  },
 ): Promise<void> {
   const wasm = readFileSync(createRequire(import.meta.url).resolve('sql.js/dist/sql-wasm.wasm'));
   // sql.js types only know about ArrayBuffer; emscripten accepts a typed array
@@ -42,7 +48,11 @@ export async function writeSeededUserDb(
   db.run(V1_SCHEMA);
   db.run('PRAGMA user_version = 1');
 
-  const settings: Record<string, unknown> = { ...DEFAULT_SETTINGS, placement_offered: opts.placementOffered ?? false };
+  const settings: Record<string, unknown> = {
+    ...DEFAULT_SETTINGS,
+    placement_offered: opts.placementOffered ?? false,
+    unlocked_levels: opts.unlockedLevels ?? [],
+  };
   if (opts.newPerDay !== undefined) settings.new_per_day = opts.newPerDay;
   const setS = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
   for (const [k, v] of Object.entries(settings)) setS.run([k, JSON.stringify(v)]);

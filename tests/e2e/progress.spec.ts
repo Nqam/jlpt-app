@@ -43,7 +43,9 @@ test('after a session the Progress screen shows non-zero streak, counts and heat
     timeout: 20_000,
   });
   await expect(win.getByText(/Стрик 1/)).toBeVisible();
-  await expect(win.getByText(/Изучаются [1-9]/)).toBeVisible();
+  // ProgressScreen now renders a block per category (grammar/kanji/vocab),
+  // so several "Изучаются N" counts are on screen -- assert on the first.
+  await expect(win.getByText(/Изучаются [1-9]/).first()).toBeVisible();
 
   // Today is the last heat cell; 5 reviews today -> bucket > 0.
   await expect(win.locator('.heat').last()).not.toHaveClass(/heat-0/);
