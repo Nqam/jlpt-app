@@ -47,6 +47,9 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .nav-link { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
   color: var(--text); text-decoration: none; font-size: 14px; min-height: 44px; }
 .nav-link.active { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+/* Fixed-width icon column so every sidebar label starts on the same line
+   despite emoji glyphs rendering at different widths. */
+.nav[data-variant='sidebar'] .nav-icon { flex: none; width: 1.5em; text-align: center; }
 .nav[data-variant='bottom'] .nav-link { flex-direction: column; gap: 2px; font-size: 11px; padding: 4px 8px; }
 .nav[data-variant='bottom'] .nav-link--settings { display: none; }
 .app-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
