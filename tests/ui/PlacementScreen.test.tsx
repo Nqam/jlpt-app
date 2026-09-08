@@ -21,7 +21,8 @@ vi.mock('@/ui/useContentDb', () => ({ useContentDb: () => ({}) }));
 // The screen now derives the available level codes before building placement
 // state; `initPlacement` is mocked below and ignores them, so a static set is
 // enough to keep the (stubbed) content db out of `availableLevelCodes`.
-vi.mock('@/core/levels', () => ({
+vi.mock('@/core/levels', async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
   availableLevelCodes: () => new Set(['N5', 'N4', 'N3', 'N2', 'N1']),
 }));
 

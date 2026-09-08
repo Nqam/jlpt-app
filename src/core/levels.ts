@@ -50,3 +50,28 @@ export function unlockLevel(user: UserDb, levelCode: string): void {
   if (cur.includes(levelCode)) return;
   user.setSetting('unlocked_levels', [...cur, levelCode]);
 }
+
+/**
+ * Разовая доводка для пользователей, у которых уже есть прогресс по уровню,
+ * закрывшемуся правилом 90% в этой версии: любой уровень, где есть хотя бы одна
+ * карточка, добавляется в `unlocked_levels`. Идемпотентна. Вызывать один раз
+ * при старте (нужен `content`, чтобы сопоставить карточку с уровнем).
+ */
+export function backfillUnlockedFromProgress(user: UserDb, content: ContentDb): void {
+  const codeOf = new Map<string, string>();
+  for (const lvl of content.listLevels()) {
+    for (const g of content.listGrammar(lvl.code)) codeOf.set(g.id, lvl.code);
+    for (const k of content.listKanji(lvl.code)) codeOf.set(k.id, lvl.code);
+    for (const v of content.listVocab(lvl.code)) codeOf.set(v.id, lvl.code);
+  }
+  const lowestOrd = Math.min(...content.listLevels().map((l) => l.ord));
+  const lowestCode = content.listLevels().find((l) => l.ord === lowestOrd)?.code;
+  const withCards = new Set<string>();
+  for (const type of ['grammar', 'kanji', 'vocab'] as const) {
+    for (const c of user.allCards(type)) {
+      const code = codeOf.get(c.item_id);
+      if (code && code !== lowestCode) withCards.add(code);
+    }
+  }
+  for (const code of withCards) unlockLevel(user, code);
+}

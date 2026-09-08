@@ -30,6 +30,7 @@ export function ProgressScreen() {
   }
 
   const ribbon = levelRibbon(user, content);
+  const effByCode = new Map(levels.map((l) => [l.code, l.status]));
   const active = levels.find((l) => l.status === 'available')?.code ?? levels[0]!.code;
   const st = streak(user, now);
   const cells = heatmap(user, now, 17);
@@ -46,17 +47,21 @@ export function ProgressScreen() {
       <h1>Прогресс</h1>
 
       <div className="ribbon">
-        {ribbon.map((seg) => (
-          <div key={seg.code} className={`ribbon-seg ${seg.status}`}>
-            <span className="ribbon-code">{seg.code}</span>
-            <div className="ribbon-track">
-              <div
-                className="ribbon-fill"
-                style={{ width: `${Math.round(seg.fill * 100)}%` }}
-              />
+        {ribbon.map((seg) => {
+          const status = effByCode.get(seg.code) ?? seg.status;
+          const fill = status === 'available' ? seg.fill : 0;
+          return (
+            <div key={seg.code} className={`ribbon-seg ${status}`}>
+              <span className="ribbon-code">{seg.code}</span>
+              <div className="ribbon-track">
+                <div
+                  className="ribbon-fill"
+                  style={{ width: `${Math.round(fill * 100)}%` }}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {(['grammar', 'kanji', 'vocab'] as ItemType[]).map((type) => {

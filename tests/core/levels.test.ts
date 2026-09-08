@@ -1,24 +1,36 @@
 import { describe, it, expect } from 'vitest';
 import { UserDb } from '@/storage/user-db';
 import { newCard, review } from '@/core/srs';
-import { effectiveLevelStatus, availableLevelCodes, unlockLevel, UNLOCK_THRESHOLD } from '@/core/levels';
+import {
+  effectiveLevelStatus,
+  availableLevelCodes,
+  unlockLevel,
+  backfillUnlockedFromProgress,
+  UNLOCK_THRESHOLD,
+} from '@/core/levels';
 import type { ContentDb } from '@/storage/content-db';
 
 const PARAMS = { requestRetention: 0.9, maximumInterval: 365, enableFuzz: false };
 const now = new Date('2026-04-01T09:00:00.000Z');
 
 // N5 available, N4 available (content ready), N3 coming_soon.
+// N4 carries a small fixed set of ids so the grandfather-backfill tests have
+// real n4 content ids to attach cards to.
+const N4G = ['n4-g1'];
+const N4K = ['n4-k1', 'n4-k2'];
+const N4V = ['n4-v1'];
 function fakeContent(n5g: string[], n5k: string[], n5v: string[]): ContentDb {
+  const pick = <T,>(lvl: string, n5: T[], n4: T[]) => (lvl === 'N5' ? n5 : lvl === 'N4' ? n4 : []);
   return {
     listLevels: () => [
       { code: 'N5', ord: 1, status: 'available', titleRu: 'N5' },
       { code: 'N4', ord: 2, status: 'available', titleRu: 'N4' },
       { code: 'N3', ord: 3, status: 'coming_soon', titleRu: 'N3' },
     ],
-    listGrammar: (lvl: string) => (lvl === 'N5' ? n5g : []).map((id) => ({ id, level: lvl, title: id, layer: 1 })),
-    grammarCountByLevel: (lvl: string) => (lvl === 'N5' ? n5g.length : 0),
-    listKanji: (lvl: string) => (lvl === 'N5' ? n5k : []).map((id) => ({ id, level: lvl, char: id, onyomi: [], kunyomi: [], meaningRu: '', strokeCount: 1 })),
-    listVocab: (lvl: string) => (lvl === 'N5' ? n5v : []).map((id) => ({ id, level: lvl, headword: id, reading: id, pos: '', meaningRu: '' })),
+    listGrammar: (lvl: string) => pick(lvl, n5g, N4G).map((id) => ({ id, level: lvl, title: id, layer: 1 })),
+    grammarCountByLevel: (lvl: string) => pick(lvl, n5g, N4G).length,
+    listKanji: (lvl: string) => pick(lvl, n5k, N4K).map((id) => ({ id, level: lvl, char: id, onyomi: [], kunyomi: [], meaningRu: '', strokeCount: 1 })),
+    listVocab: (lvl: string) => pick(lvl, n5v, N4V).map((id) => ({ id, level: lvl, headword: id, reading: id, pos: '', meaningRu: '' })),
   } as unknown as ContentDb;
 }
 
@@ -90,5 +102,37 @@ describe('core/levels', () => {
 
   it('UNLOCK_THRESHOLD is 0.9', () => {
     expect(UNLOCK_THRESHOLD).toBe(0.9);
+  });
+
+  describe('backfillUnlockedFromProgress', () => {
+    it('a fresh user with no cards gets nothing unlocked; N4 stays locked', async () => {
+      const { user, content } = await seed(0);
+      backfillUnlockedFromProgress(user, content);
+      expect(user.getSetting<string[]>('unlocked_levels', [])).toEqual([]);
+      expect(effectiveLevelStatus(user, content, 'N4', now)).toBe('locked');
+    });
+
+    it('a user with an existing N4 card keeps N4 open after the backfill', async () => {
+      const { user, content } = await seed(0);
+      user.upsertCard(newCard('kanji', 'n4-k1', now));
+      expect(effectiveLevelStatus(user, content, 'N4', now)).toBe('locked');
+      backfillUnlockedFromProgress(user, content);
+      expect(user.getSetting<string[]>('unlocked_levels', [])).toContain('N4');
+      expect(effectiveLevelStatus(user, content, 'N4', now)).toBe('available');
+    });
+
+    it('never adds the lowest level even when it has cards', async () => {
+      const { user, content } = await seed(0.5); // seeds N5 cards in all three types
+      backfillUnlockedFromProgress(user, content);
+      expect(user.getSetting<string[]>('unlocked_levels', [])).not.toContain('N5');
+    });
+
+    it('is idempotent', async () => {
+      const { user, content } = await seed(0);
+      user.upsertCard(newCard('grammar', 'n4-g1', now));
+      backfillUnlockedFromProgress(user, content);
+      backfillUnlockedFromProgress(user, content);
+      expect(user.getSetting<string[]>('unlocked_levels', [])).toEqual(['N4']);
+    });
   });
 });

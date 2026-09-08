@@ -80,4 +80,15 @@ describe('GrammarListScreen', () => {
     expect(getByText(/откроется после 90% завершения/i)).toBeInTheDocument();
     expect(queryByRole('listitem')).toBeNull();
   });
+
+  it('names the previous level in the locked hint when one exists', () => {
+    effLevels.value = [
+      defaultEff[0]!,
+      { code: 'N4', ord: 2, titleRu: 'N4', status: 'locked', rawStatus: 'available' },
+      ...defaultEff.slice(2),
+    ];
+    const { getByRole, getByText } = renderScreen();
+    fireEvent.click(getByRole('tab', { name: /N4/ }));
+    expect(getByText(/откроется после 90% завершения уровня N5\./i)).toBeInTheDocument();
+  });
 });

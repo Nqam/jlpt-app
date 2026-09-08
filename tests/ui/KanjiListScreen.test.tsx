@@ -83,6 +83,16 @@ describe('KanjiListScreen', () => {
     expect(queryByRole('listitem')).toBeNull();
   });
 
+  it('names the previous level in the locked hint when one exists', () => {
+    effLevels.value = [
+      defaultEff[0]!,
+      { code: 'N4', ord: 2, titleRu: 'N4', status: 'locked', rawStatus: 'available' },
+    ];
+    const { getByRole, getByText } = renderScreen();
+    fireEvent.click(getByRole('tab', { name: /N4/ }));
+    expect(getByText(/откроется после 90% завершения уровня N5\./i)).toBeInTheDocument();
+  });
+
   it('shows a level badge only on search results, not on browsed-by-tab items', () => {
     const { container, getByRole } = renderScreen();
     // browsing N5 by tab: no badge

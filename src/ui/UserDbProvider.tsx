@@ -1,7 +1,16 @@
-import { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { UserDb } from '@/storage/user-db';
 import { getPlatformAdapter } from '@/platform';
 import { maybeAutoBackup } from '@/ui/auto-backup';
+import { backfillUnlockedFromProgress } from '@/core/levels';
+import { ContentDbContext } from './ContentDbProvider';
 
 const APP_VERSION =
   (import.meta.env.VITE_APP_VERSION as string | undefined) ?? '0.0.0';
@@ -15,12 +24,20 @@ export function UserDbProvider({ children }: { children: ReactNode }) {
   const [ctx, setCtx] = useState<Ctx | null>(null);
   const [error, setError] = useState<string | null>(null);
   const flushWired = useRef(false);
+  // ContentDbProvider renders this component only once its own db is ready, so
+  // the content db is available here for the one-time grandfather backfill.
+  const contentCtx = useContext(ContentDbContext);
+  const contentRef = useRef(contentCtx?.db ?? null);
+  contentRef.current = contentCtx?.db ?? null;
 
   useEffect(() => {
     let cancelled = false;
     UserDb.open(getPlatformAdapter(), APP_VERSION, new Date())
       .then((db) => {
         if (cancelled) return;
+        // Разовая доводка: пользователи, у которых уже есть прогресс по уровню,
+        // закрывшемуся правилом 90%, сохраняют доступ к нему. Идемпотентно.
+        if (contentRef.current) backfillUnlockedFromProgress(db, contentRef.current);
         setCtx({ db });
         // Еженедельный авто-бэкап — побочный эффект вне критического пути рендера.
         void maybeAutoBackup(db, getPlatformAdapter(), new Date());

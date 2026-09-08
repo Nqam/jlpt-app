@@ -10,6 +10,9 @@ export function GrammarListScreen() {
   const [query, setQuery] = useState('');
 
   const activeLevelObj = levels.find((l) => l.code === activeLevel);
+  const prevLevel = activeLevelObj
+    ? levels.filter((l) => l.ord < activeLevelObj.ord).sort((a, b) => b.ord - a.ord)[0]?.code
+    : undefined;
   const points = useMemo(() => {
     if (query.trim()) return db.searchGrammar(query);
     return db.listGrammar(activeLevel);
@@ -47,7 +50,9 @@ export function GrammarListScreen() {
         <p className="muted">Материал уровня {activeLevel} появится скоро.</p>
       ) : !query && activeLevelObj?.status === 'locked' ? (
         <p className="muted">
-          Уровень {activeLevel} откроется после 90% завершения предыдущего уровня.
+          {prevLevel
+            ? `Уровень ${activeLevel} откроется после 90% завершения уровня ${prevLevel}.`
+            : `Уровень ${activeLevel} откроется после 90% завершения предыдущего уровня.`}
         </p>
       ) : points.length === 0 ? (
         <p className="muted">Ничего не найдено.</p>

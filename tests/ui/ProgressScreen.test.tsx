@@ -15,7 +15,10 @@ vi.mock('@/ui/useContentDb', () => ({
 vi.mock('@/core/progress', () => ({
   levelRibbon: () => [
     { code: 'N5', status: 'available', fill: 0.4 },
-    { code: 'N4', status: 'locked', fill: 0 },
+    // real `levelRibbon` only ever emits the raw content flags (never 'locked');
+    // the effective status from `useEffectiveLevels` says N4 is 'locked', and a
+    // grandfathered user's non-zero N4 fill must be forced to 0 under that label.
+    { code: 'N4', status: 'coming_soon', fill: 0.3 },
   ],
   levelBars: (_u: unknown, _c: unknown, _lvl: string, itemType: string) =>
     itemType === 'grammar'
@@ -47,6 +50,18 @@ describe('ProgressScreen', () => {
     renderScreen();
     expect(screen.getByText('N5')).toBeTruthy();
     expect(screen.getByText('N4')).toBeTruthy();
+  });
+
+  it('renders the ribbon with the EFFECTIVE level status (locked N4), forcing its fill to 0', () => {
+    const { container } = renderScreen();
+    const locked = container.querySelector('.ribbon-seg.locked');
+    expect(locked).toBeTruthy();
+    expect(locked!.textContent).toContain('N4');
+    // raw levelRibbon fill for N4 was 0.3; the locked label must show an empty bar.
+    const style = locked!.querySelector('.ribbon-fill')!.getAttribute('style') ?? '';
+    expect(style).toContain('width: 0%');
+    // and it must NOT carry the raw 'coming_soon' class
+    expect(container.querySelector('.ribbon-seg.coming_soon')).toBeNull();
   });
 
   it('renders a progress block for each of the three categories', () => {

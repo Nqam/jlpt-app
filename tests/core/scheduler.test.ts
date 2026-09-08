@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import type { PlatformAdapter } from '@/platform/adapter';
 import { UserDb } from '@/storage/user-db';
-import { daySummary, buildQueue } from '@/core/scheduler';
+import { daySummary, buildQueue, availableItemIds } from '@/core/scheduler';
 import { newCard } from '@/core/srs';
 import { endOfLocalDay } from '@/core/time';
 
@@ -61,6 +61,7 @@ function fakeMultiLevelContent() {
     ],
     listGrammar: (level: string) =>
       (level === 'N5' ? n5 : n4).map((p) => ({ id: p.id, level, title: p.id, layer: p.layer })),
+    grammarCountByLevel: (lvl: string) => (lvl === 'N5' ? n5.length : n4.length),
     listKanji: () => [],
     listVocab: () => [],
   } as unknown as import('@/storage/content-db').ContentDb;
@@ -112,6 +113,36 @@ describe('core/scheduler', () => {
     const ids = q.map((i) => i.itemId);
     expect(ids).toHaveLength(5); // default new_per_day
     expect(ids.every((id) => id.startsWith('n5-'))).toBe(true);
+  });
+
+  it('a locked level yields no NEW cards, but its already-started cards still come up for review', () => {
+    // N4 NOT unlocked -> effectiveLevelStatus('N4') is 'locked' for this 0%-completion user
+    const content = fakeMultiLevelContent();
+    // seed a due N4 card
+    const c = newCard('grammar', 'n4-a', now);
+    c.reps = 1;
+    c.due = new Date(now.getTime() - 3600_000).toISOString();
+    user.upsertCard(c);
+    const q = buildQueue(user, content, now);
+    // its started card survives (review is not gated):
+    expect(q.some((i) => i.itemId === 'n4-a' && i.kind === 'due')).toBe(true);
+    // but no NEW n4 card is offered:
+    expect(q.some((i) => i.kind === 'new' && i.itemId.startsWith('n4-'))).toBe(false);
+    // N5 new cards still flow:
+    expect(q.some((i) => i.kind === 'new' && i.itemId.startsWith('n5-'))).toBe(true);
+  });
+
+  it('availableItemIds gates by level code and keeps N5 ids ahead of N4 ids', () => {
+    const content = fakeMultiLevelContent();
+    const withoutN4 = availableItemIds(content, 'grammar', new Set(['N5']));
+    expect(withoutN4.some((id) => id.startsWith('n4-'))).toBe(false);
+    expect(withoutN4.every((id) => id.startsWith('n5-'))).toBe(true);
+
+    const withN4 = availableItemIds(content, 'grammar', new Set(['N5', 'N4']));
+    expect(withN4.some((id) => id.startsWith('n4-'))).toBe(true);
+    const firstN4 = withN4.findIndex((id) => id.startsWith('n4-'));
+    const lastN5 = withN4.map((id) => id.startsWith('n5-')).lastIndexOf(true);
+    expect(lastN5).toBeLessThan(firstN4); // every N5 id sorts before any N4 id
   });
 
   it('due cards with past due are queued, future ones are not', () => {
