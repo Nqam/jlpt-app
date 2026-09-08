@@ -153,15 +153,18 @@ describe('buildContentDb', () => {
     db.close();
   });
 
-  it('produces 630 real N4 vocab rows with readings and Russian meanings', async () => {
+  it('produces 625 real N4 vocab rows with readings and Russian meanings', async () => {
     const bytes = buildContentDb(opts);
     const SQL = await initSqlJs({
       locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
     });
     const db = new SQL.Database(bytes);
 
+    // 630 from the Wikibooks N4 list, minus 5 words it also lists at N5
+    // (明日/あした, 開く/あく, そう, 上げる/あげる, つける) — deduped so the
+    // learner does not get the same word as a second SRS card. See CREDITS.md.
     const n4Count = db.exec("SELECT count(*) FROM vocab_points WHERE level = 'N4'")[0]!.values[0]![0];
-    expect(n4Count).toBe(630);
+    expect(n4Count).toBe(625);
     const n5Count = db.exec("SELECT count(*) FROM vocab_points WHERE level = 'N5'")[0]!.values[0]![0];
     expect(n5Count).toBe(681); // unchanged by this task
 

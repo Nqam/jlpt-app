@@ -193,9 +193,9 @@ describe('ContentDb', () => {
     expect(upper.map((v) => v.id)).toEqual(lower.map((v) => v.id));
   });
 
-  it('lists all 630 N4 vocab entries sorted by id, independently of N5', () => {
+  it('lists all 625 N4 vocab entries sorted by id, independently of N5', () => {
     const n4 = db.listVocab('N4');
-    expect(n4).toHaveLength(630);
+    expect(n4).toHaveLength(625); // 630 Wikibooks minus 5 deduped vs N5 (see CREDITS.md)
     for (let i = 1; i < n4.length; i++) expect(n4[i]!.id >= n4[i - 1]!.id).toBe(true);
     expect(db.listVocab('N5')).toHaveLength(681); // unaffected by N4 landing
   });
