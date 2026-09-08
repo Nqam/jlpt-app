@@ -25,8 +25,6 @@ describe('content.db schema', () => {
       'lessons',
       'levels',
       'meta',
-      'text_questions',
-      'texts',
       'vocab_points',
     ]);
     db.close();
@@ -39,7 +37,6 @@ const opts = {
   schemaPath: resolve(__dirname, '../../scripts/build-content/schema.sql'),
   kanjiDir: resolve(__dirname, '../../content/kanji'),
   vocabDir: resolve(__dirname, '../../content/vocab'),
-  textsDir: resolve(__dirname, '../../content/texts'),
   lessonsDir: resolve(__dirname, '../../content/lessons'),
 };
 
@@ -177,46 +174,6 @@ describe('buildContentDb', () => {
     expect(row[0]).toBe('かいぎ');
     expect(row[1]).toBe('сущ.');
     expect(row[2]).toBe('собрание, совещание');
-
-    db.close();
-  });
-
-  it('produces 15 real texts (9 N5, 6 N4) with questions and intact FKs', async () => {
-    const bytes = buildContentDb(opts);
-    const SQL = await initSqlJs({
-      locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
-    });
-    const db = new SQL.Database(bytes);
-
-    const n5Count = db.exec("SELECT count(*) FROM texts WHERE level = 'N5'")[0]!.values[0]![0];
-    expect(n5Count).toBe(9);
-    const n4Count = db.exec("SELECT count(*) FROM texts WHERE level = 'N4'")[0]!.values[0]![0];
-    expect(n4Count).toBe(6);
-
-    const row = db.exec(
-      "SELECT title, body_ruby, translation_ru FROM texts WHERE id = 'n5-kitsune-to-tsuru'",
-    )[0]!.values[0]!;
-    expect(row[0]).toBe('キツネとツル');
-    expect(String(row[1])).toContain('きつね');
-    expect(String(row[2])).toContain('журавл');
-
-    const qCount = db.exec(
-      "SELECT count(*) FROM text_questions WHERE text_id = 'n5-kitsune-to-tsuru'",
-    )[0]!.values[0]![0];
-    expect(qCount).toBe(4);
-
-    const firstQ = db.exec(
-      "SELECT prompt, choices_json, answer_index FROM text_questions WHERE text_id = 'n5-kitsune-to-tsuru' AND ord = 0",
-    )[0]!.values[0]!;
-    expect(JSON.parse(String(firstQ[1]))).toHaveLength(4);
-    expect(firstQ[2]).toBe(2);
-
-    const orphans = db.exec(`
-      SELECT count(*) FROM text_questions q
-      LEFT JOIN texts t ON t.id = q.text_id
-      WHERE t.id IS NULL
-    `)[0]!.values[0]![0];
-    expect(orphans).toBe(0);
 
     db.close();
   });

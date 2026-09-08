@@ -6,7 +6,6 @@ import { loadAllGrammar, validateGrammar } from './parse-grammar';
 import { loadLevels } from './lists';
 import { loadAllKanji, validateKanji } from './kanji';
 import { loadAllVocab, validateVocab } from './vocab';
-import { loadAllTexts, validateTexts } from './parse-texts';
 import { loadAllLessons, validateLessons, validateLessonRefs } from './lessons';
 import type { ParsedLesson } from './lessons';
 
@@ -16,7 +15,6 @@ export interface BuildOpts {
   schemaPath: string;
   kanjiDir: string;
   vocabDir: string;
-  textsDir: string;
   lessonsDir: string;
   /** По умолчанию — фиксированное значение, чтобы сборка была детерминированной в тестах. */
   contentVersion?: string;
@@ -111,25 +109,6 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
     insV.run([v.id, v.level, v.headword, v.reading, v.pos, v.meaningRu]);
   }
   insV.free();
-
-  const texts = loadAllTexts(opts.textsDir).sort((a, b) => a.id.localeCompare(b.id));
-  const textErrors = validateTexts(texts);
-  if (textErrors.length) throw new Error(`texts validation failed:\n${textErrors.join('\n')}`);
-  for (const t of texts) {
-    if (!levelCodes.has(t.level)) throw new Error(`text ${t.id}: unknown level ${t.level}`);
-  }
-  const insT = db.prepare(
-    'INSERT INTO texts (id, level, title, body_ruby, translation_ru) VALUES (?,?,?,?,?)',
-  );
-  const insTQ = db.prepare(
-    'INSERT INTO text_questions (text_id, ord, prompt, choices_json, answer_index) VALUES (?,?,?,?,?)',
-  );
-  for (const t of texts) {
-    insT.run([t.id, t.level, t.title, t.bodyRuby, t.translationRu]);
-    t.questions.forEach((q, i) => insTQ.run([t.id, i, q.prompt, JSON.stringify(q.choices), q.answerIndex]));
-  }
-  insT.free();
-  insTQ.free();
 
   const lessons = loadAllLessons(opts.lessonsDir).sort((a, b) => a.id.localeCompare(b.id));
   const lessonErrors = validateLessons(lessons);

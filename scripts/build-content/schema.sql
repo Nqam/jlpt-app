@@ -52,24 +52,6 @@ CREATE TABLE vocab_points (
 );
 CREATE INDEX idx_vocab_level ON vocab_points(level);
 
-CREATE TABLE texts (
-  id             TEXT PRIMARY KEY,
-  level          TEXT NOT NULL REFERENCES levels(code),
-  title          TEXT NOT NULL,
-  body_ruby      TEXT NOT NULL,
-  translation_ru TEXT NOT NULL
-);
-CREATE INDEX idx_texts_level ON texts(level);
-
-CREATE TABLE text_questions (
-  text_id      TEXT NOT NULL REFERENCES texts(id),
-  ord          INTEGER NOT NULL,
-  prompt       TEXT NOT NULL,
-  choices_json TEXT NOT NULL,
-  answer_index INTEGER NOT NULL,
-  PRIMARY KEY (text_id, ord)
-);
-
 CREATE TABLE lessons (
   id             TEXT PRIMARY KEY,
   stage          INTEGER NOT NULL,

@@ -63,26 +63,6 @@ export interface VocabPoint {
   meaningRu: string;
 }
 
-export interface TextQuestion {
-  /** Текст вопроса на русском. */
-  prompt: string;
-  /** 3-4 варианта ответа на русском. */
-  choices: string[];
-  /** Индекс верного варианта в `choices`. */
-  answerIndex: number;
-}
-
-export interface TextPoint {
-  id: string;
-  level: LevelCode;
-  title: string;
-  /** Японский текст в записи фуриганы ("кандзи[чтение]"), абзацы разделены "\n\n". */
-  bodyRuby: string;
-  /** Русский перевод, абзацы разделены "\n\n" (столько же абзацев, сколько в bodyRuby). */
-  translationRu: string;
-  questions: TextQuestion[];
-}
-
 export type LessonKind = 'text' | 'dialogue';
 export type LessonItemRole = 'introduce' | 'review';
 

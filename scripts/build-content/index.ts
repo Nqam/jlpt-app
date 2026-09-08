@@ -13,7 +13,6 @@ async function main(): Promise<void> {
     schemaPath: resolve(root, 'scripts/build-content/schema.sql'),
     kanjiDir: resolve(root, 'content/kanji'),
     vocabDir: resolve(root, 'content/vocab'),
-    textsDir: resolve(root, 'content/texts'),
     lessonsDir: resolve(root, 'content/lessons'),
     contentVersion: process.env['CONTENT_VERSION'] ?? '0.1.0',
   });
