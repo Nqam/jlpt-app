@@ -10,6 +10,7 @@ import { UserDb } from '@/storage/user-db';
 import { getPlatformAdapter } from '@/platform';
 import { maybeAutoBackup } from '@/ui/auto-backup';
 import { backfillUnlockedFromProgress } from '@/core/levels';
+import { migratePlacementMarks } from '@/core/placement';
 import { ContentDbContext } from './ContentDbProvider';
 
 const APP_VERSION =
@@ -38,6 +39,8 @@ export function UserDbProvider({ children }: { children: ReactNode }) {
         // Разовая доводка: пользователи, у которых уже есть прогресс по уровню,
         // закрывшемуся правилом 90%, сохраняют доступ к нему. Идемпотентно.
         if (contentRef.current) backfillUnlockedFromProgress(db, contentRef.current);
+        // Одноразовая миграция grammar-only ключа теста в per-type. Идемпотентна.
+        migratePlacementMarks(db);
         setCtx({ db });
         // Еженедельный авто-бэкап — побочный эффект вне критического пути рендера.
         void maybeAutoBackup(db, getPlatformAdapter(), new Date());
