@@ -11,6 +11,7 @@ import { getPlatformAdapter } from '@/platform';
 import { maybeAutoBackup } from '@/ui/auto-backup';
 import { backfillUnlockedFromProgress } from '@/core/levels';
 import { migratePlacementMarks } from '@/core/placement';
+import { migrateTextsRead } from '@/core/course';
 import { ContentDbContext } from './ContentDbProvider';
 
 const APP_VERSION =
@@ -41,6 +42,7 @@ export function UserDbProvider({ children }: { children: ReactNode }) {
         if (contentRef.current) backfillUnlockedFromProgress(db, contentRef.current);
         // Одноразовая миграция grammar-only ключа теста в per-type. Идемпотентна.
         migratePlacementMarks(db);
+        migrateTextsRead(db);
         setCtx({ db });
         // Еженедельный авто-бэкап — побочный эффект вне критического пути рендера.
         void maybeAutoBackup(db, getPlatformAdapter(), new Date());

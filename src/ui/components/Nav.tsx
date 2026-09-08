@@ -6,7 +6,7 @@ const DESTINATIONS = [
   { to: '/grammar', label: 'Грамматика', icon: '📘' },
   { to: '/kanji', label: 'Кандзи', icon: '㊗' },
   { to: '/vocab', label: 'Слова', icon: '📝' },
-  { to: '/texts', label: 'Тексты', icon: '📖' },
+  { to: '/course', label: 'Курс', icon: '📖' },
   { to: '/progress', label: 'Прогресс', icon: '📈' },
 ];
 

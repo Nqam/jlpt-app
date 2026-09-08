@@ -346,3 +346,9 @@ body { margin: 0; background: var(--bg); color: var(--text); }
   font-family: var(--font-ja); color: var(--muted); font-size: 0.95rem;
   border-left: 3px solid var(--border); padding-left: 0.75rem; margin: 0;
 }
+
+.lesson-screen { max-width: min(48rem, 100%); }
+.lesson-step { display: flex; flex-direction: column; gap: 1rem; }
+.lesson-summary { display: flex; flex-direction: column; gap: 1rem; align-items: flex-start; margin-top: 1.5rem; }
+.lesson-summary-title { font-size: 1.15rem; color: var(--ok); font-weight: 600; margin: 0; }
+.lesson-summary-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }

@@ -5,8 +5,7 @@ import { KanjiDetailScreen } from './screens/KanjiDetailScreen';
 import { VocabListScreen } from './screens/VocabListScreen';
 import { VocabDetailScreen } from './screens/VocabDetailScreen';
 import { CourseScreen } from './screens/CourseScreen';
-import { TextsListScreen } from './screens/TextsListScreen';
-import { TextDetailScreen } from './screens/TextDetailScreen';
+import { LessonScreen } from './screens/LessonScreen';
 import { TodayScreen } from './screens/TodayScreen';
 import { ReviewScreen } from './screens/ReviewScreen';
 import { PlacementScreen } from './screens/PlacementScreen';
@@ -19,11 +18,23 @@ function PlacementRedirect() {
   return <Navigate to="/placement/grammar" replace />;
 }
 
-// Key the screen on `:type` so React Router remounts it (rather than reusing the
-// element with stale state/seed/refs) when only the param changes.
 function PlacementRoute() {
   const { type } = useParams();
   return <PlacementScreen key={type} />;
+}
+
+// Remount the lesson player when only the :id changes (stale step/refs otherwise),
+// same rationale as PlacementRoute.
+function LessonRoute() {
+  const { id } = useParams();
+  return <LessonScreen key={id} />;
+}
+
+// Plan 5-2: /texts is now the course. Keep the two redirects so old bookmarks
+// and any lingering links still resolve.
+function TextDetailRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/lesson/${id}`} replace />;
 }
 
 export const routes: RouteObject[] = [
@@ -38,8 +49,9 @@ export const routes: RouteObject[] = [
   { path: '/vocab', element: <VocabListScreen /> },
   { path: '/vocab/:id', element: <VocabDetailScreen /> },
   { path: '/course', element: <CourseScreen /> },
-  { path: '/texts', element: <TextsListScreen /> },
-  { path: '/texts/:id', element: <TextDetailScreen /> },
+  { path: '/lesson/:id', element: <LessonRoute /> },
+  { path: '/texts', element: <Navigate to="/course" replace /> },
+  { path: '/texts/:id', element: <TextDetailRedirect /> },
   { path: '/progress', element: <ProgressScreen /> },
   { path: '/settings', element: <SettingsScreen /> },
 ];
