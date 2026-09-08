@@ -1,4 +1,4 @@
-# Дизайн: план 4h — вступительный тест как случайная выборка, отдельно по грамматике / кандзи / словам
+# Дизайн: план 4h — вступительный тест как выборка (отдельно грамматика/кандзи/слова) + маркеры «изучено» в справочниках
 
 Дата: 2026-09-08. Статус: согласовано.
 
@@ -6,201 +6,233 @@
 
 Текущий вступительный тест — только по грамматике, бинарный поиск по каноническому
 порядку. При всех верных ответах помечает все 43 пункта N5 известными за ~6 вопросов
-(экстраполяция: предполагает монотонность знаний). У кандзи и слов порядка по
-сложности НЕТ (`layer` есть только у грамматики), поэтому бинарный поиск для них
-неприменим в принципе.
+(экстраполяция — предполагает монотонность знаний). У кандзи и слов порядка по
+сложности НЕТ (`layer` только у грамматики), бинарный поиск для них неприменим.
 
 ## Решение
 
-Единый алгоритм для всех трёх типов — **случайная выборка без экстраполяции**:
+Единый алгоритм для всех трёх типов — **выборка без экстраполяции**:
 
-1. Пользователь выбирает длину: **короткий 15 / средний 30 / длинный 60** вопросов.
-2. Берётся seeded-перемешанная выборка пунктов уровня этого типа; если пунктов
-   меньше запрошенного — берутся все.
-3. Каждый вопрос генерируется существующим генератором с `reps=0`
-   (грамматика — `generateForCard`, кандзи — `generateKanjiQuestion`, слова —
+1. Пользователь выбирает объём в **процентах от числа пунктов раздела**:
+   **10 / 25 / 50 / 100 %**. Число вопросов:
+   `count = clamp(round(pct/100 * total), min(total, 10), min(total, 100))`.
+   Экран показывает посчитанное число («25% ≈ 20 вопросов»). Если `total <= 10` —
+   одна кнопка «Весь раздел ({total})».
+2. **Приоритет выборки при повторных тестах**: пул делится на «ещё не пройдено»
+   (нет SRS-карточки, либо карточка в статусе `new`) и «пройдено» (карточка в
+   `learning`/`learned`/`mastered`). Каждая часть перемешивается seeded-шафлом,
+   склеивается `[не пройдено] ++ [пройдено]`, берутся первые `count`. Так повторный
+   тест сперва добивает непройденные пункты, а если они кончились — повторяет
+   пройденные (полезно как быстрый чек).
+3. Каждый вопрос — существующим генератором с `reps=0` (грамматика —
+   `generateForCard`, кандзи — `generateKanjiQuestion`, слова —
    `generateVocabQuestion`).
-4. **Верный ответ** → пункт помечается «известно»: создаётся SRS-карточка с оценкой
-   «Легко» (rating 4, как сейчас), id тегируется в `settings`.
-5. **Неверный ответ ИЛИ пункт не попал в выборку** → ничего не создаётся. Пункт
-   остаётся обычной «новой» карточкой и всплывает в ежедневном повторении. Дыры в
-   знаниях сохраняются и проявляются потом — это и есть цель.
+4. **Верный ответ** → пункт помечается «известно»: SRS-карточка с оценкой «Легко»
+   (rating 4), id тегируется в `settings.placement_marked_{type}_ids`.
+5. **Неверный ответ ИЛИ пункт не в выборке** → ничего не создаётся. Пункт остаётся
+   обычной «новой» карточкой и всплывает в ежедневном повторении. Дыры в знаниях
+   сохраняются и проявляются потом — это и есть цель.
 
-Бинарный поиск, «граница», проверочный проход, двойное подтверждение — всё удаляется.
-`src/core/placement.ts` переписывается целиком под выборку.
+Бинарный поиск, «граница», проверочный проход, двойное подтверждение — удаляются.
+`src/core/placement.ts` переписывается целиком.
 
 ## Не входит
 
-- Экстраполяция «вы ответили 19/20, отметить остальные?» — сознательно нет.
+- Экстраполяция «ответили 19/20, отметить остальные?» — сознательно нет.
 - Отдельный режим «Учить» (викторина 1/3) — другая фича.
-- Гейтинг: тест по разделу для `locked`-уровня недоступен так же, как сейчас (тянет
+- Тест по разделу для `locked`-уровня недоступен (тянет
   `availableItemIds(content, type, availableCodes)`).
 
-## 1. `src/core/placement.ts` (переписать)
+## 1. `src/core/placement.ts` (переписать целиком)
 
 ```ts
 import type { ItemType } from '@/core/types';
+import type { ContentDb } from '@/storage/content-db';
+import type { UserDb } from '@/storage/user-db';
+import type { Question } from '@/core/quiz/types';
+import { availableItemIds } from '@/core/scheduler';
+import { statusOf } from '@/core/srs';
+import { seededShuffle } from '@/core/quiz/rng';
+import { generateForCard } from '@/core/quiz/registry';
+import { generateKanjiQuestion } from '@/core/quiz/kanji-questions';
+import { generateVocabQuestion } from '@/core/quiz/vocab-questions';
+import { levelPointsFor } from '@/core/session';
 
-export type PlacementLength = 15 | 30 | 60;
+export type PlacementPercent = 10 | 25 | 50 | 100;
 
 export interface PlacementState {
   itemType: ItemType;
-  ids: string[];        // seeded-перемешанная выборка, длина = min(length, доступно)
+  ids: string[];        // выборка пунктов, длина = count (см. §Решение п.1)
   index: number;        // текущий вопрос, 0-based
-  correctIds: string[]; // id, на которые ответили верно (в порядке ответов)
+  correctIds: string[]; // id, на которые ответили верно
 }
 
-/** Пул пунктов типа `itemType` в доступных уровнях (тот же порядок, что у scheduler). */
-// grammar: availableItemIds(content, 'grammar', codes)
-// kanji  : availableItemIds(content, 'kanji', codes)
-// vocab  : availableItemIds(content, 'vocab', codes)
+/** Число вопросов для процента и размера раздела. */
+export function placementCount(total: number, pct: PlacementPercent): number {
+  const raw = Math.round((pct / 100) * total);
+  return Math.min(Math.max(raw, Math.min(total, 10)), Math.min(total, 100));
+}
 
+/**
+ * Строит тест. `pool` = availableItemIds(content, itemType, availableCodes).
+ * Делит pool на непройденные / пройденные по наличию карточки со статусом
+ * learning+, шафлит каждую часть по `seed`, склеивает [непройдено]++[пройдено],
+ * берёт первые placementCount(pool.length, pct).
+ */
 export function initPlacement(
   content: ContentDb,
+  user: UserDb,
   itemType: ItemType,
   availableCodes: ReadonlySet<string>,
-  length: PlacementLength,
+  pct: PlacementPercent,
   seed: string,
 ): PlacementState;
-// pool = availableItemIds(...); ids = seededShuffle(pool, seed).slice(0, length);
-// { itemType, ids, index: 0, correctIds: [] }
 
-export function isPlacementDone(s: PlacementState): boolean;   // s.index >= s.ids.length
-export function placementQuestionNumber(s: PlacementState): number;  // s.index + 1
-export function placementTotal(s: PlacementState): number;     // s.ids.length
+export function isPlacementDone(s: PlacementState): boolean;         // index >= ids.length
+export function placementQuestionNumber(s: PlacementState): number;  // index + 1
+export function placementTotal(s: PlacementState): number;           // ids.length
 
-/** Вопрос для текущего пункта. `null` если тест окончен или пункт не резолвится. */
+/** Вопрос текущего пункта. `null` если тест окончен или пункт не резолвится. */
 export function nextPlacementQuestion(
   s: PlacementState, content: ContentDb, seed: string,
 ): { itemId: string; question: Question } | null;
-// idx = s.index; id = s.ids[idx];
-// grammar: point=content.getGrammar(id); generateForCard(point, levelPointsFor(content, point.level), 0, `${seed}:${id}`)
-// kanji  : point=content.getKanji(id);   generateKanjiQuestion(point, content.listKanji(point.level), 0, `${seed}:${id}`)
-// vocab  : point=content.getVocab(id);   generateVocabQuestion(point, content.listVocab(point.level), 0, `${seed}:${id}`)
+// id = s.ids[s.index]; по s.itemType — соответствующий генератор, seed `${seed}:${id}`
 
 export function applyPlacementAnswer(s: PlacementState, correct: boolean): PlacementState;
-// id = s.ids[s.index];
-// { ...s, index: s.index + 1, correctIds: correct ? [...s.correctIds, id] : s.correctIds }
+// { ...s, index: index+1, correctIds: correct ? [...correctIds, s.ids[s.index]] : correctIds }
 
-/** id, которые тест считает известными (ответ верный). */
-export function placementKnownIds(s: PlacementState): string[];  // s.correctIds
+export function placementKnownIds(s: PlacementState): string[];      // s.correctIds
+
+/** Одноразовая миграция старого grammar-only ключа в per-type. Идемпотентна. */
+export function migratePlacementMarks(user: UserDb): void;
+// old = getSetting('placement_marked_ids', [])
+// if (old.length && getSetting('placement_marked_grammar_ids', []).length === 0)
+//   setSetting('placement_marked_grammar_ids', old)
 ```
 
-Убрать: `placementFrontierIds`, `placementRemaining`, `lo`/`hi`/`askedCount`.
+Удалить: `placementFrontierIds`, `placementRemaining`, `lo`/`hi`/`askedCount`,
+`nextPlacementQuestion` со старой сигнатурой.
 
 ## 2. Данные пользователя
-
-Тегирование помеченных тестом карточек — per-type, чтобы кнопки сброса в Настройках
-работали раздельно:
 
 - `settings.placement_marked_grammar_ids: string[]`
 - `settings.placement_marked_kanji_ids: string[]`
 - `settings.placement_marked_vocab_ids: string[]`
 
-Миграция существующего `settings.placement_marked_ids` (был grammar-only): при первом
-чтении, если старый ключ непуст и `placement_marked_grammar_ids` пуст — скопировать
-старый в grammar-ключ (одноразово, в helper при монтировании — рядом с
-`backfillUnlockedFromProgress`, или прямо в `SettingsScreen`/`PlacementScreen` при
-записи). Простейший вариант: helper `migratePlacementMarks(user)` в
-`src/core/placement.ts`, вызвать в `UserDbProvider` после `UserDb.open`.
+`migratePlacementMarks(user)` вызывается в `src/ui/UserDbProvider.tsx` после
+`UserDb.open` (рядом с `backfillUnlockedFromProgress`).
 
-`placement_offered` (bool) — без изменений, первый запуск предлагает тест грамматики.
+`placement_offered` (bool) — без изменений; первый запуск предлагает тест грамматики.
 
-## 3. `PlacementScreen` (`src/ui/screens/PlacementScreen.tsx`)
+## 3. `PlacementScreen` (`src/ui/screens/PlacementScreen.tsx`, переписать)
 
-Роут: `/placement/:type` где `type ∈ {grammar, kanji, vocab}`. Старый `/placement` →
-редирект на `/placement/grammar` (или отдельный компонент-редирект в routes).
+Роут `/placement/:type` (`type ∈ grammar|kanji|vocab`). Старый `/placement` →
+редирект-компонент на `/placement/grammar` в `routes.tsx`.
 
-Экран:
-1. **Экран выбора длины** (пока `length` не выбрана): заголовок «Тест: {раздел}»,
-   три кнопки «Короткий · 15», «Средний · 30», «Длинный · 60». Под ними подпись
-   «Верные ответы отметят пункты как известные. Остальные останутся в ежедневном
-   повторении.» Если пунктов в разделе меньше 15 — показать только «Пройти тест
-   (N вопросов)».
-2. **Вопросы** (после выбора): `<p className="placement-counter">Вопрос {n} из {total}</p>`
-   + `<QuestionView showExplainLink={false}>` + кнопка «Далее». (Как сейчас, но
-   счётчик теперь точный `n / total`.)
+1. **Экран выбора объёма** (пока `pct` не выбран): «Тест: {раздел}». Кнопки
+   `10% · ≈{placementCount(total,10)}` … `100% · ≈{placementCount(total,100)}`
+   (или одна «Весь раздел ({total})» при `total<=10`). Подпись: «Верные ответы
+   отметят пункты как известные. Остальные останутся в ежедневном повторении.»
+   `total` = длина `availableItemIds(content, type, availableCodes)`.
+2. **Вопросы**: `<p className="placement-counter">Вопрос {n} из {placementTotal}</p>`
+   + `<QuestionView showExplainLink={false}>` + кнопка «Далее».
 3. **Итог**: «Готово. Отмечено как уже известные: {marked}.» + кнопка «На сегодня».
-   `marked` = сколько новых карточек реально создано (пропускаем те, у кого карточка
-   уже есть).
 
-Логика завершения (эффект по `isPlacementDone`): для каждого `placementKnownIds(state)`
-без существующей карточки — `review(newCard(itemType, id, now), 4, now, 0, params)` →
-`upsertCard`; собрать `newlyMarked`; дописать в
-`settings.placement_marked_{itemType}_ids`; `setSetting('placement_offered', true)`.
+При выборе процента — `initPlacement(content, user, type, availableCodes, pct,
+Date.now().toString())` один раз в `useState`. Завершение (эффект по
+`isPlacementDone`): для каждого `placementKnownIds(state)` без карточки —
+`review(newCard(type, id, now), 4, now, 0, params)` → `upsertCard`; дописать
+`newlyMarked` в `settings.placement_marked_{type}_ids`; `setSetting('placement_offered', true)`;
+`setMarkedCount(newlyMarked.length)`.
 
-При выборе длины экран вызывает `initPlacement(content, itemType, availableCodes,
-length, seed)` один раз, где `seed = Date.now().toString()` (свежая выборка при
-каждом заходе; тесты передают фиксированный seed). Результат кладётся в `useState`.
-`availableCodes` = `availableLevelCodes(user, content, now)`. Вопросный seed в
-`nextPlacementQuestion` — тоже `'placement'` (постоянный, вопрос детерминирован
-парой `id`+генератор).
+## 4. Маркеры «изучено» в справочниках
 
-## 4. Точки входа
+Экраны `GrammarListScreen` / `KanjiListScreen` / `VocabListScreen` красят элементы
+списка по статусу SRS-карточки. Раздел «Тексты» уже помечает прочитанные
+(`.text-read-badge`) — не трогаем, но приводим стиль к общему.
+
+- Новый компонент `src/ui/components/StatusDot.tsx`:
+  `{ status: 'new' | 'learning' | 'learned' | 'mastered' }` → маленькая точка
+  (`<span className="status-dot status-dot-{status}" title="{подпись}">`).
+  `new` → ничего не рендерит (или прозрачная точка для выравнивания).
+  Подписи: learning «изучается», learned «изучено», mastered «освоено».
+- В каждом из 3 экранов: `const cards = user.allCards(type)` → `Map<id, CardRow>`;
+  для каждого элемента списка `statusOf(card)` (или `'new'`), рендерить `StatusDot`
+  слева/справа от названия.
+- CSS: `.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }`
+  `.status-dot-learning { background: var(--heat-2); }`
+  `.status-dot-learned { background: var(--heat-3); }`
+  `.status-dot-mastered { background: var(--heat-4); }`
+  (переиспользуем heat-палитру — она уже адаптирована под тёмную тему.)
+- Экраны сейчас не используют `useUserDb()` — добавить импорт и хук. Проверить,
+  что их тесты рендерятся внутри `UserDbProvider`-мока (как `SettingsScreen.test`),
+  иначе расширить моки.
+- Поиск (кросс-уровневый) — маркеры показывать и там (тот же `Map`).
+
+## 5. Точки входа теста
 
 ### Шапки справочников
-
-`GrammarListScreen` / `KanjiListScreen` / `VocabListScreen`: рядом с заголовком/
-табами уровней — ссылка-кнопка `<Link className="btn-ghost" to="/placement/{type}">
-Пройти тест по разделу</Link>`. Показывать только если активный уровень
-`available` (не `locked`/`coming_soon`).
+`GrammarListScreen` / `KanjiListScreen` / `VocabListScreen`: рядом с табами уровней —
+`<Link className="btn-ghost" to="/placement/{type}">Пройти тест по разделу</Link>`.
+Только если активный уровень эффективно `available`.
 
 ### Настройки
-
-Блок «Вступительный тест» расширяется: три ссылки — «Тест: грамматика» / «Тест:
-кандзи» / «Тест: слова» (`/placement/grammar` и т.д.). Существующую единственную
-ссылку «Пройти вступительный тест заново» заменить этими тремя.
-
-Кнопки сброса: сейчас «Сбросить результаты N5/N4 (N)» по грамматике. Обобщить:
-для каждого типа, где `placement_marked_{type}_ids` непуст — кнопка «Сбросить тест:
-{раздел} (N)», удаляющая эти карточки (`user.deleteCard(type, id)` для каждого) и
-чистящая соответствующий список. (Разбивку по уровням можно убрать — тип + счётчик
-достаточно; при сбросе удаляются все помеченные тестом карточки этого типа.)
+Блок «Вступительный тест»: три ссылки «Тест: грамматика / кандзи / слова»
+(`/placement/{type}`) вместо одной «Пройти вступительный тест заново».
+Кнопки сброса: для каждого типа с непустым `placement_marked_{type}_ids` — кнопка
+«Сбросить тест: {раздел} ({N})» → `user.deleteCard(type, id)` для каждого +
+очистка списка. Разбивку по уровням убрать.
 
 ### Первый запуск
+`TodayScreen` offer: `<Link to="/placement/grammar">`. Текст дополнить: «тесты по
+кандзи и словам — в их разделах или в Настройках».
 
-`TodayScreen` offer: `<Link to="/placement/grammar">`. Текст можно дополнить: «…а
-тесты по кандзи и словам — в соответствующих разделах или в Настройках».
-
-## 5. Тесты
+## 6. Тесты
 
 ### Vitest — ядро (`tests/core/placement.test.ts`, переписать)
-- `initPlacement`: `ids` — перемешанная выборка длины `min(length, pool)`; детерминизм
-  по seed; для типа с пулом < length берутся все.
-- `nextPlacementQuestion`: грамматика/кандзи/слова — правильный генератор, `itemType`
-  в вопросе совпадает; `null` после конца.
-- `applyPlacementAnswer`: `index++`; верный → id в `correctIds`, неверный → нет.
-- `placementKnownIds` = только верно отвеченные; `placementQuestionNumber` 1-based;
-  `placementTotal` = длина выборки; `isPlacementDone`.
+- `placementCount`: границы (10% от 43 → 10; 100% от 43 → 43; 25% от 681 → 100 потолок;
+  total 5 → 5).
+- `initPlacement`: длина = `placementCount`; детерминизм по seed; **непройденные
+  идут раньше пройденных** (засеять карточки на часть pool, проверить порядок `ids`).
+- `nextPlacementQuestion`: по типу — свой генератор, `question.itemType` совпадает;
+  `null` после конца.
+- `applyPlacementAnswer` / `placementKnownIds` / `placementQuestionNumber` /
+  `placementTotal` / `isPlacementDone`.
 - `migratePlacementMarks`: старый ключ → grammar-ключ, одноразово, идемпотентно.
 
-### Vitest — UI (`tests/ui/PlacementScreen.test.tsx`, переписать)
-- Экран выбора длины: 3 кнопки; клик по «15» → появляется первый вопрос, счётчик
-  «Вопрос 1 из 15».
-- Прохождение до конца: верные ответы → `upsertCard` вызван N раз, `insertReviewLog`
-  не вызван, `setSetting('placement_marked_kanji_ids', ...)` для kanji-теста.
-- Итог показывает число отмеченных.
-- Мок `@/core/placement` покрывает новый набор экспортов.
-
-### Vitest — UI списков
-- Каждый из 3 экранов: кнопка «Пройти тест по разделу» ведёт на `/placement/{type}`,
-  скрыта для `locked`-уровня.
-- `SettingsScreen`: 3 ссылки на тесты; кнопка сброса на тип с помеченными id зовёт
-  `deleteCard(type, id)` и чистит список.
+### Vitest — UI
+- `PlacementScreen` (переписать): экран выбора (4 кнопки % или 1 «весь раздел»);
+  клик → первый вопрос + счётчик «Вопрос 1 из N»; прохождение → `upsertCard` N раз,
+  `insertReviewLog` не вызван, `setSetting('placement_marked_kanji_ids', …)` для
+  kanji-теста; итог с числом.
+- 3 экрана-списка: `StatusDot` рендерится по статусу карточки (learned → класс
+  `status-dot-learned`); кнопка «Пройти тест по разделу» ведёт на `/placement/{type}`,
+  скрыта для `locked`.
+- `SettingsScreen`: 3 ссылки на тесты; кнопка сброса типа зовёт `deleteCard(type,id)`
+  и чистит `placement_marked_{type}_ids`.
+- `StatusDot`: `new` → пусто; каждый статус → свой класс + `title`.
 
 ### Playwright (`tests/e2e/placement.spec.ts`, обновить)
-- `/placement/grammar`: выбрать «короткий», пройти 15 вопросов (первый вариант
-  каждый раз), дойти до «Отмечено как уже известные», флаг `placement_offered`
-  персистится через рестарт.
-- Новый лёгкий тест: из шапки «Кандзи» кнопка «Пройти тест по разделу» открывает
-  `/placement/kanji`, виден выбор длины.
+- `/placement/grammar`: выбрать «10%», пройти N вопросов (первый вариант каждый раз),
+  дойти до «Отмечено как уже известные», флаг `placement_offered` переживает рестарт.
+- Новый: из шапки «Кандзи» кнопка «Пройти тест по разделу» → `/placement/kanji`,
+  виден экран выбора объёма.
+- Существующий тест на список кандзи/слов N4 — если ломается от `StatusDot`,
+  поправить селекторы (маркер не должен ломать `.grammar-list-item`/`.kanji-grid-item`
+  счётчики).
 
-## 6. Порядок задач
+## 7. Порядок задач
 
-1. `src/core/placement.ts` переписать под выборку + `migratePlacementMarks`. Ядро-тесты.
-2. `PlacementScreen` — роут `/placement/:type`, экран выбора длины, завершение с
-   per-type тегами. UI-тесты. Редирект старого `/placement`.
-3. Точки входа: 3 шапки справочников + `SettingsScreen` (3 ссылки + обобщённые кнопки
-   сброса) + `TodayScreen` offer. UI-тесты. `migratePlacementMarks` в `UserDbProvider`.
-4. e2e (обновить `placement.spec.ts` + новый kanji-тест) + финальная регрессия
-   (typecheck, lint, vitest, playwright, `build:desktop:installer`).
+1. `src/core/placement.ts` переписать (выборка + `placementCount` + приоритет
+   непройденных + `migratePlacementMarks`). Ядро-тесты.
+2. `PlacementScreen` — роут `/placement/:type`, экран выбора %, завершение с per-type
+   тегами, редирект старого роута. `migratePlacementMarks` в `UserDbProvider`. UI-тесты.
+3. `StatusDot` + маркеры в 3 экранах-списках (+ поиск). CSS. UI-тесты.
+4. Точки входа: 3 шапки справочников + `SettingsScreen` (3 ссылки + обобщённые кнопки
+   сброса) + `TodayScreen` offer. UI-тесты.
+5. e2e (обновить `placement.spec.ts` + новый kanji-тест, починить затронутые списки) +
+   финальная регрессия (typecheck, lint, vitest, playwright, `build:desktop:installer`).
+   Затем: bump версии в `package.json` (→ 1.4.0), коммит, `git push origin main`,
+   `npm run build:desktop:installer`, `gh release create v1.4.0 "dist/Kotsukotsu Setup 1.4.0.exe" ...`,
+   удалить старые `dist/JLPT Setup *.exe` / `dist/Kotsukotsu Setup 1.{0,1,2,3}.*` и
+   сопутствующие `.blockmap`. Обновить оба файла памяти.
