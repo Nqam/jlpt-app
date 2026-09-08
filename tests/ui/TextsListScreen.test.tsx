@@ -27,18 +27,19 @@ vi.mock('@/ui/useContentDb', async (importOriginal) => ({
 }));
 
 import { TextsListScreen } from '@/ui/screens/TextsListScreen';
-import type { TextPoint, Level } from '@/core/types';
+import type { LessonMeta, Level } from '@/core/types';
 
 const levels: Level[] = [
   { code: 'N5', ord: 1, status: 'available', titleRu: 'N5' },
   { code: 'N4', ord: 2, status: 'coming_soon', titleRu: 'N4' },
 ];
-const n5: TextPoint[] = [
-  { id: 'n5-a', level: 'N5', title: 'キツネとツル', bodyRuby: '', translationRu: '', questions: [] },
-  { id: 'n5-b', level: 'N5', title: '二匹のかえる', bodyRuby: '', translationRu: '', questions: [] },
+const lessons: LessonMeta[] = [
+  { id: 'n5-a', stage: 4, kind: 'text', title: 'キツネとツル', introducesCount: 0, isFreeReading: true },
+  { id: 'n5-b', stage: 10, kind: 'text', title: '二匹のかえる', introducesCount: 0, isFreeReading: true },
+  { id: 'n4-a', stage: 44, kind: 'text', title: '温泉', introducesCount: 0, isFreeReading: true },
 ];
 const fakeDb = {
-  listTexts: (l: string) => (l === 'N5' ? n5 : []),
+  listLessons: () => lessons,
 } as unknown as import('@/storage/content-db').ContentDb;
 
 function renderScreen() {

@@ -1,7 +1,7 @@
 import type { Database } from 'sql.js';
 import type { PlatformAdapter } from '@/platform/adapter';
 import type {
-  GrammarPoint, KanjiPoint, Level, LevelCode, VocabPoint, TextPoint,
+  GrammarPoint, KanjiPoint, Level, LevelCode, VocabPoint,
   LessonMeta, LessonFull, LessonIntroduce, LessonMarker,
 } from '@/core/types';
 import { loadSqlJs } from './sqljs';
@@ -316,28 +316,6 @@ export class ContentDb {
       questions,
       introduces,
       markers,
-    };
-  }
-
-  // --- Переходные обёртки для /texts до плана 5-2 (удаляются в задаче 4). ---
-  listTexts(level: LevelCode): TextPoint[] {
-    const cut = level === 'N5' ? -Infinity : 40;
-    const hi = level === 'N5' ? 40 : Infinity;
-    return this.listLessons()
-      .filter((l) => l.stage >= (level === 'N5' ? -Infinity : cut) && l.stage < hi)
-      .map((l) => ({ id: l.id, level, title: l.title, bodyRuby: '', translationRu: '', questions: [] }));
-  }
-
-  getText(id: string): TextPoint | null {
-    const l = this.getLesson(id);
-    if (!l) return null;
-    return {
-      id: l.id,
-      level: l.stage < 40 ? 'N5' : 'N4',
-      title: l.title,
-      bodyRuby: l.bodyRuby,
-      translationRu: l.translationRu,
-      questions: l.questions,
     };
   }
 }

@@ -8,7 +8,7 @@ export function TextDetailScreen() {
   const { id = '' } = useParams();
   const db = useContentDb();
   const user = useUserDb();
-  const point = useMemo(() => db.getText(id), [db, id]);
+  const point = useMemo(() => db.getLesson(id), [db, id]);
 
   const [translationShown, setTranslationShown] = useState(false);
   const [qIndex, setQIndex] = useState(0);

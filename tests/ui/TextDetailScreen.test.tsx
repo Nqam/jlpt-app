@@ -27,22 +27,27 @@ vi.mock('@/ui/useUserDb', () => ({
 }));
 
 import { TextDetailScreen } from '@/ui/screens/TextDetailScreen';
-import type { Level, TextPoint } from '@/core/types';
+import type { Level, LessonFull } from '@/core/types';
 
 const levels: Level[] = [{ code: 'N5', ord: 1, status: 'available', titleRu: 'N5' }];
-const sample: TextPoint = {
+const sample: LessonFull = {
   id: 'n5-sample',
-  level: 'N5',
+  stage: 3,
+  kind: 'text',
   title: 'サンプル',
+  introducesCount: 0,
+  isFreeReading: true,
   bodyRuby: 'これは 文[ぶん]です。\n\n二[ふた]つ目[め]の 段落[だんらく]です。',
   translationRu: 'Это предложение.\n\nВторой абзац.',
   questions: [
     { prompt: 'Вопрос 1?', choices: ['A', 'B', 'C'], answerIndex: 1 },
     { prompt: 'Вопрос 2?', choices: ['D', 'E', 'F'], answerIndex: 0 },
   ],
+  introduces: [],
+  markers: [],
 };
 const fakeDb = {
-  getText: (id: string) => (id === sample.id ? sample : null),
+  getLesson: (id: string) => (id === sample.id ? sample : null),
 } as unknown as import('@/storage/content-db').ContentDb;
 
 function renderAt(path: string) {

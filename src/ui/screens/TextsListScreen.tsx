@@ -3,6 +3,14 @@ import { Link } from 'react-router-dom';
 import { useContentDb, useEffectiveLevels } from '../useContentDb';
 import { useUserDb } from '../useUserDb';
 
+/**
+ * Переходный шим до плана 5-2: у урока нет `level`, только сквозной `stage`.
+ * Мигрированные тексты получили stage 2..18 (условно N5) и 42..52 (условно N4).
+ * План 5-2 заменит вкладки уровней на единый список курса по `stage`.
+ */
+const STAGE_LEVEL_SPLIT = 40;
+const levelOfStage = (stage: number): string => (stage < STAGE_LEVEL_SPLIT ? 'N5' : 'N4');
+
 export function TextsListScreen() {
   const db = useContentDb();
   const levels = useEffectiveLevels();
@@ -10,7 +18,11 @@ export function TextsListScreen() {
   const [activeLevel, setActiveLevel] = useState(levels[0]?.code ?? '');
 
   const activeLevelObj = levels.find((l) => l.code === activeLevel);
-  const points = useMemo(() => db.listTexts(activeLevel), [db, activeLevel]);
+  const allLessons = useMemo(() => db.listLessons(), [db]);
+  const points = useMemo(
+    () => allLessons.filter((l) => levelOfStage(l.stage) === activeLevel),
+    [allLessons, activeLevel],
+  );
   const readIds = user.getSetting<string[]>('texts_read_ids', []);
 
   return (
