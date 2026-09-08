@@ -27,8 +27,13 @@ vi.mock('@/ui/useContentDb', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/ui/useContentDb')>()),
   useEffectiveLevels: () => effLevels.value,
 }));
+const userCards: { value: { item_id: string; reps: number; stability: number }[] } = { value: [] };
+vi.mock('@/ui/useUserDb', () => ({
+  useUserDb: () => ({ allCards: () => userCards.value }),
+}));
 beforeEach(() => {
   effLevels.value = defaultEff;
+  userCards.value = [];
 });
 const n5: VocabPoint[] = [
   { id: 'n5-一つ-ひとつ', level: 'N5', headword: '一つ', reading: 'ひとつ', pos: 'сущ.', meaningRu: 'один' },
@@ -101,5 +106,12 @@ describe('VocabListScreen', () => {
     const badges = container.querySelectorAll('.level-badge');
     expect(badges).toHaveLength(1);
     expect(badges[0]).toHaveTextContent('N4');
+  });
+
+  it('shows a status dot for a vocab point with a learned card', () => {
+    userCards.value = [{ item_id: 'n5-学校-がっこう', reps: 5, stability: 15 }];
+    const { container } = renderScreen();
+    expect(container.querySelector('.status-dot-learned')).toBeInTheDocument();
+    expect(container.querySelectorAll('.status-dot')).toHaveLength(1);
   });
 });

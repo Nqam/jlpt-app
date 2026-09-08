@@ -27,8 +27,13 @@ vi.mock('@/ui/useContentDb', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/ui/useContentDb')>()),
   useEffectiveLevels: () => effLevels.value,
 }));
+const userCards: { value: { item_id: string; reps: number; stability: number }[] } = { value: [] };
+vi.mock('@/ui/useUserDb', () => ({
+  useUserDb: () => ({ allCards: () => userCards.value }),
+}));
 beforeEach(() => {
   effLevels.value = defaultEff;
+  userCards.value = [];
 });
 const n5: KanjiPoint[] = [
   { id: 'n5-一', level: 'N5', char: '一', onyomi: ['イチ'], kunyomi: ['ひと.つ'], strokeCount: 1, meaningRu: 'один' },
@@ -103,5 +108,13 @@ describe('KanjiListScreen', () => {
     const badges = container.querySelectorAll('.level-badge');
     expect(badges).toHaveLength(1);
     expect(badges[0]).toHaveTextContent('N4');
+  });
+
+  it('shows a status dot for a kanji with a learned card', () => {
+    userCards.value = [{ item_id: 'n5-学', reps: 5, stability: 15 }]; // stability 7..30 -> "learned"
+    const { container } = renderScreen();
+    expect(container.querySelector('.status-dot-learned')).toBeInTheDocument();
+    // exactly one item has a dot; the other ('n5-一') has none
+    expect(container.querySelectorAll('.status-dot')).toHaveLength(1);
   });
 });

@@ -29,8 +29,13 @@ vi.mock('@/ui/useContentDb', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/ui/useContentDb')>()),
   useEffectiveLevels: () => effLevels.value,
 }));
+const userCards: { value: { item_id: string; reps: number; stability: number }[] } = { value: [] };
+vi.mock('@/ui/useUserDb', () => ({
+  useUserDb: () => ({ allCards: () => userCards.value }),
+}));
 beforeEach(() => {
   effLevels.value = defaultEff;
+  userCards.value = [];
 });
 const n5: GrammarPoint[] = [
   { id: 'n5-wa-particle', level: 'N5', title: 'は (тема предложения)', layer: 1, tags: [], related: [], bodyMarkdown: '', examples: [] },
@@ -90,5 +95,12 @@ describe('GrammarListScreen', () => {
     const { getByRole, getByText } = renderScreen();
     fireEvent.click(getByRole('tab', { name: /N4/ }));
     expect(getByText(/откроется после 90% завершения уровня N5\./i)).toBeInTheDocument();
+  });
+
+  it('shows a status dot for a grammar point with a learned card', () => {
+    userCards.value = [{ item_id: 'n5-mo-particle', reps: 5, stability: 15 }];
+    const { container } = renderScreen();
+    expect(container.querySelector('.status-dot-learned')).toBeInTheDocument();
+    expect(container.querySelectorAll('.status-dot')).toHaveLength(1);
   });
 });

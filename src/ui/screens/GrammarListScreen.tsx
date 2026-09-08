@@ -2,9 +2,18 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useContentDb, useEffectiveLevels } from '../useContentDb';
 import { LevelBadge } from '../components/LevelBadge';
+import { useUserDb } from '@/ui/useUserDb';
+import { statusOf } from '@/core/srs';
+import { StatusDot } from '@/ui/components/StatusDot';
 
 export function GrammarListScreen() {
   const db = useContentDb();
+  const user = useUserDb();
+  const cardStatus = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof statusOf>>();
+    for (const c of user.allCards('grammar')) m.set(c.item_id, statusOf(c));
+    return m;
+  }, [user]);
   const levels = useEffectiveLevels();
   const [activeLevel, setActiveLevel] = useState(levels[0]?.code ?? '');
   const [query, setQuery] = useState('');
@@ -61,6 +70,7 @@ export function GrammarListScreen() {
           {points.map((p) => (
             <li key={p.id}>
               <Link to={`/grammar/${p.id}`} className="grammar-list-item">
+                <StatusDot status={cardStatus.get(p.id) ?? 'new'} />
                 <span className="grammar-list-title">{p.title}</span>
                 {query ? <LevelBadge level={p.level} /> : null}
                 <span className="grammar-list-layer">слой {p.layer}</span>

@@ -2,9 +2,18 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useContentDb, useEffectiveLevels } from '../useContentDb';
 import { LevelBadge } from '../components/LevelBadge';
+import { useUserDb } from '@/ui/useUserDb';
+import { statusOf } from '@/core/srs';
+import { StatusDot } from '@/ui/components/StatusDot';
 
 export function VocabListScreen() {
   const db = useContentDb();
+  const user = useUserDb();
+  const cardStatus = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof statusOf>>();
+    for (const c of user.allCards('vocab')) m.set(c.item_id, statusOf(c));
+    return m;
+  }, [user]);
   const levels = useEffectiveLevels();
   const [activeLevel, setActiveLevel] = useState(levels[0]?.code ?? '');
   const [query, setQuery] = useState('');
@@ -61,6 +70,7 @@ export function VocabListScreen() {
           {points.map((p) => (
             <li key={p.id}>
               <Link to={`/vocab/${p.id}`} className="vocab-list-item">
+                <StatusDot status={cardStatus.get(p.id) ?? 'new'} />
                 <span className="vocab-headword">{p.headword}</span>
                 {p.headword !== p.reading ? <span className="vocab-reading">{p.reading}</span> : null}
                 <span className="vocab-meaning">{p.meaningRu}</span>
