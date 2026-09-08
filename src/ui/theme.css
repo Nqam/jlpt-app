@@ -153,8 +153,11 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .heat-4 { background: var(--heat-4); }
 
 .streak { font-size: 0.95rem; margin: 0.6rem 0; }
-.unlock-rule { color: var(--muted); font-size: 0.85rem; margin-top: 1.2rem;
-  border-top: 1px solid var(--border); padding-top: 0.8rem; }
+.progress-category { margin-top: 1.5rem; }
+
+.unlock-rule { color: var(--muted); font-size: 0.85rem; margin-top: 2rem;
+  border-top: 1px solid var(--border); padding-top: 1rem; }
+.unlock-rule button { margin-top: 0.6rem; }
 
 /* --- Plan 3: quiz --- */
 .q { display: flex; flex-direction: column; gap: 12px; }
