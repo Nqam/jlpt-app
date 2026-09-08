@@ -21,8 +21,8 @@ export function ProgressScreen() {
 
   const ribbon = levelRibbon(user, content);
   const active = levels.find((l) => l.status === 'available')?.code ?? levels[0]!.code;
-  const bars = levelBars(user, content, active);
-  const counts = statusCounts(user, content, active);
+  const bars = levelBars(user, content, active, 'grammar');
+  const counts = statusCounts(user, content, active, 'grammar');
   const st = streak(user, now);
   const cells = heatmap(user, now, 17);
 

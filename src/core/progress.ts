@@ -1,5 +1,6 @@
 import type { UserDb, CardRow } from '@/storage/user-db';
 import type { ContentDb } from '@/storage/content-db';
+import type { ItemType } from '@/core/types';
 import { statusOf, type Status } from '@/core/srs';
 import { localDayKey, daysBetweenLocal, startOfLocalDay } from '@/core/time';
 
@@ -8,18 +9,29 @@ export interface StatusCounts { new: number; learning: number; learned: number; 
 export interface HeatCell { dayKey: string; count: number; }
 export interface RibbonSegment { code: string; status: string; fill: number; }
 
-function levelGrammarIds(content: ContentDb, levelCode: string): Set<string> {
-  return new Set(content.listGrammar(levelCode).map((g) => g.id));
+function levelItemIds(content: ContentDb, levelCode: string, itemType: ItemType): Set<string> {
+  const list =
+    itemType === 'grammar' ? content.listGrammar(levelCode)
+    : itemType === 'kanji' ? content.listKanji(levelCode)
+    : content.listVocab(levelCode);
+  return new Set(list.map((p) => p.id));
 }
 
-function cardsForLevel(user: UserDb, ids: Set<string>): CardRow[] {
-  return user.allCards('grammar').filter((c) => ids.has(c.item_id));
+function totalForLevel(content: ContentDb, levelCode: string, itemType: ItemType): number {
+  if (itemType === 'grammar') return content.grammarCountByLevel(levelCode);
+  return levelItemIds(content, levelCode, itemType).size;
 }
 
-export function levelBars(user: UserDb, content: ContentDb, levelCode: string): LevelBars {
-  const total = content.grammarCountByLevel(levelCode);
+function cardsForLevel(user: UserDb, itemType: ItemType, ids: Set<string>): CardRow[] {
+  return user.allCards(itemType).filter((c) => ids.has(c.item_id));
+}
+
+export function levelBars(
+  user: UserDb, content: ContentDb, levelCode: string, itemType: ItemType,
+): LevelBars {
+  const total = totalForLevel(content, levelCode, itemType);
   if (total === 0) return { studied: 0, consolidated: 0, total: 0 };
-  const cards = cardsForLevel(user, levelGrammarIds(content, levelCode));
+  const cards = cardsForLevel(user, itemType, levelItemIds(content, levelCode, itemType));
   let studied = 0;
   let consolidated = 0;
   for (const c of cards) {
@@ -30,13 +42,26 @@ export function levelBars(user: UserDb, content: ContentDb, levelCode: string): 
   return { studied: studied / total, consolidated: consolidated / total, total };
 }
 
-export function statusCounts(user: UserDb, content: ContentDb, levelCode: string): StatusCounts {
-  const total = content.grammarCountByLevel(levelCode);
-  const cards = cardsForLevel(user, levelGrammarIds(content, levelCode));
+export function statusCounts(
+  user: UserDb, content: ContentDb, levelCode: string, itemType: ItemType,
+): StatusCounts {
+  const total = totalForLevel(content, levelCode, itemType);
+  const cards = cardsForLevel(user, itemType, levelItemIds(content, levelCode, itemType));
   const counts: Record<Status, number> = { new: 0, learning: 0, learned: 0, mastered: 0 };
   for (const c of cards) counts[statusOf(c)]++;
   counts.new = Math.max(0, total - cards.length);
   return counts;
+}
+
+const COMPLETION_TYPES: readonly ItemType[] = ['grammar', 'kanji', 'vocab'];
+
+export function levelCompletion(user: UserDb, content: ContentDb, levelCode: string): number {
+  const parts: number[] = [];
+  for (const t of COMPLETION_TYPES) {
+    const b = levelBars(user, content, levelCode, t);
+    if (b.total > 0) parts.push(b.consolidated);
+  }
+  return parts.length === 0 ? 0 : parts.reduce((a, b) => a + b, 0) / parts.length;
 }
 
 export function streak(user: UserDb, now: Date): { current: number; best: number } {
@@ -85,6 +110,6 @@ export function levelRibbon(user: UserDb, content: ContentDb): RibbonSegment[] {
   return content.listLevels().map((lvl) => ({
     code: lvl.code,
     status: lvl.status,
-    fill: lvl.status === 'available' ? levelBars(user, content, lvl.code).consolidated : 0,
+    fill: lvl.status === 'available' ? levelCompletion(user, content, lvl.code) : 0,
   }));
 }
