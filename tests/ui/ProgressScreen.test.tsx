@@ -2,7 +2,10 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-vi.mock('@/ui/useUserDb', () => ({ useUserDb: () => ({}) }));
+const grammarCards: { value: { item_id: string }[] } = { value: [] };
+vi.mock('@/ui/useUserDb', () => ({
+  useUserDb: () => ({ allCards: () => grammarCards.value }),
+}));
 
 vi.mock('@/core/course', () => ({
   courseCompletedIds: () => ['a', 'b'],
@@ -52,11 +55,18 @@ function renderScreen() {
 describe('ProgressScreen', () => {
   beforeEach(() => {
     unlockLevel.mockClear();
+    grammarCards.value = [];
   });
 
-  it('shows how many course lessons are done', () => {
+  it('shows how many course points are done', () => {
     renderScreen();
-    expect(screen.getByText(/Курс: пройдено 2 из 4/)).toBeInTheDocument();
+    expect(screen.getByText(/Курс: пройдено 2 из 4 пунктов/)).toBeInTheDocument();
+  });
+
+  it('counts a placement-carded (not completed) point toward the done count', () => {
+    grammarCards.value = [{ item_id: 'c' }]; // 'a','b' completed + 'c' carded = 3
+    renderScreen();
+    expect(screen.getByText(/Курс: пройдено 3 из 4 пунктов/)).toBeInTheDocument();
   });
 
   it('renders the ribbon and both level codes', () => {

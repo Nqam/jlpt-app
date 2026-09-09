@@ -16,7 +16,8 @@ export function CourseScreen() {
   const points = useMemo(() => db.listCourseGrammar(), [db]);
   const completed = user.getSetting<string[]>('course_completed_ids', []);
   const completedSet = useMemo(() => new Set(completed), [completed]);
-  const hasCard = (id: string) => user.getCard('grammar', id) != null;
+  const carded = useMemo(() => new Set(user.allCards('grammar').map((c) => c.item_id)), [user]);
+  const hasCard = (id: string) => carded.has(id);
   const currentId = currentCourseLessonId(points, completedSet, hasCard);
   const current = currentId ? points.find((p) => p.id === currentId) ?? null : null;
 

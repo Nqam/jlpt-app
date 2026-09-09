@@ -97,4 +97,14 @@ describe('migrateCourseKeys', () => {
     migrateCourseKeys(u as never, fakeContent as never);
     expect(u.getSetting('course_completed_ids', [])).toEqual(['n5-de-particle', 'stray']);
   });
+
+  it('prunes stale course_progress keys even when there are no stray completed ids', () => {
+    const u = fakeUser({
+      course_completed_ids: [],
+      course_progress: { hanami: { step: 2 } }, // a text id, never a grammar key
+    });
+    migrateCourseKeys(u as never, fakeContent as never);
+    expect(u.getSetting('course_progress', {})).toEqual({});
+    expect(u.getSetting('course_keys_migrated', false)).toBe(true);
+  });
 });

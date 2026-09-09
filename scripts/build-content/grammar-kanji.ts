@@ -26,6 +26,7 @@ export function extractGrammarKanji(
         if (kanjiIdSet.has(id) && !seen.has(id)) {
           seen.add(id);
           out.push(id);
+          break;
         }
       }
     }

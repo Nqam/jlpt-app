@@ -53,13 +53,15 @@ export function migrateCourseKeys(user: UserLike, content: GrammarLookup): void 
     for (const id of stray) read.add(id);
     user.setSetting('texts_read_ids', [...read]);
     user.setSetting(K_COMPLETED, completed.filter((id) => content.getGrammar(id) != null));
-
-    const progress = { ...user.getSetting<ProgressMap>(K_PROGRESS, {}) };
-    for (const id of Object.keys(progress)) {
-      if (content.getGrammar(id) == null) delete progress[id];
-    }
-    user.setSetting(K_PROGRESS, progress);
   }
+
+  // Spec §8: prune stale (non-grammar-key) course_progress entries unconditionally.
+  const progress = { ...user.getSetting<ProgressMap>(K_PROGRESS, {}) };
+  for (const id of Object.keys(progress)) {
+    if (content.getGrammar(id) == null) delete progress[id];
+  }
+  user.setSetting(K_PROGRESS, progress);
+
   user.setSetting('course_keys_migrated', true);
 }
 

@@ -177,7 +177,7 @@ describe('buildContentDb', () => {
     db.close();
   });
 
-  it('produces 15 lessons migrated from texts, ordered by stage, with empty introduces/markers', async () => {
+  it('produces 15 lessons migrated from texts, ordered by stage', async () => {
     const bytes = buildContentDb(opts);
     const SQL = await initSqlJs({
       locateFile: () => resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),

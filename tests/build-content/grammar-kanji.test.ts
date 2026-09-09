@@ -21,4 +21,10 @@ describe('extractGrammarKanji', () => {
   it('returns [] when there are no examples', () => {
     expect(extractGrammarKanji([], kanjiIds, levels)).toEqual([]);
   });
+
+  it('emits only the first level id when a char resolves under two level codes', () => {
+    const bothLevels = new Set(['n5-日', 'n4-日']);
+    const examples = [{ jaRuby: '日[ひ]' }];
+    expect(extractGrammarKanji(examples, bothLevels, ['N5', 'N4'])).toEqual(['n5-日']);
+  });
 });

@@ -44,14 +44,15 @@ export function ProgressScreen() {
   const completion = levelCompletion(user, content, active);
 
   const coursePoints = content.listCourseGrammar();
-  const grammarIds = new Set(coursePoints.map((p) => p.id));
-  const doneCount = courseCompletedIds(user).filter((x) => grammarIds.has(x)).length;
+  const completedSet = new Set(courseCompletedIds(user));
+  const carded = new Set(user.allCards('grammar').map((c) => c.item_id));
+  const doneCount = coursePoints.filter((p) => completedSet.has(p.id) || carded.has(p.id)).length;
 
   return (
     <section className="progress">
       <h1>Прогресс</h1>
       <p className="course-progress-line">
-        Курс: пройдено {doneCount} из {coursePoints.length} уроков
+        Курс: пройдено {doneCount} из {coursePoints.length} пунктов
       </p>
 
       <div className="ribbon">

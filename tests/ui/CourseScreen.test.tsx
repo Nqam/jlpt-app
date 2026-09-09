@@ -11,12 +11,12 @@ const MemoryRouter = (p: ComponentProps<typeof BaseMemoryRouter>) => (
 );
 
 const completed: { value: string[] } = { value: [] };
-const carded: { value: Set<string> } = { value: new Set() };
+const carded: { value: { item_id: string }[] } = { value: [] };
 vi.mock('@/ui/useUserDb', () => ({
   useUserDb: () => ({
     getSetting: (key: string, fb: unknown) =>
       key === 'course_completed_ids' ? completed.value : fb,
-    getCard: (t: string, i: string) => (carded.value.has(`${t}:${i}`) ? {} : null),
+    allCards: () => carded.value,
   }),
 }));
 
@@ -43,7 +43,7 @@ function renderScreen() {
 describe('CourseScreen', () => {
   beforeEach(() => {
     completed.value = [];
-    carded.value = new Set();
+    carded.value = [];
   });
 
   it('has a "Курс" heading', () => {
@@ -60,7 +60,7 @@ describe('CourseScreen', () => {
   });
 
   it('a point that already has a card counts as done', () => {
-    carded.value = new Set(['grammar:g1']);
+    carded.value = [{ item_id: 'g1' }];
     const { container } = renderScreen();
     const byId = (id: string) => container.querySelector(`.course-item[data-lesson="${id}"]`)!;
     expect(byId('g1')).toHaveAttribute('data-state', 'done');

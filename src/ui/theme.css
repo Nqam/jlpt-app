@@ -55,13 +55,13 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .app-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 /* Content follows the window: fill the available column up to a readable
    ceiling, with side padding that scales with viewport width. */
-.screen, .today, .review, .progress, .placement, .settings {
+.screen, .today, .review, .progress, .placement, .settings, .text-detail {
   width: 100%; margin: 0 auto;
 }
 /* Long unbroken Japanese runs must wrap inside their column, not overflow it. */
 .q-sentence, .q-prompt, .grammar-md, .example-ja,
-.grammar-list-title, .vocab-headword { overflow-wrap: anywhere; }
-.grammar-list-title { min-width: 0; }
+.grammar-list-title, .text-list-title, .vocab-headword { overflow-wrap: anywhere; }
+.grammar-list-title, .text-list-title { min-width: 0; }
 .app-header { display: flex; align-items: center; justify-content: space-between;
   padding: 12px 20px; border-bottom: 1px solid var(--border); }
 .app-brand { font-family: var(--font-ja); font-weight: 700; letter-spacing: 0.12em; color: var(--accent); }
@@ -95,6 +95,21 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .example { border-left: 3px solid var(--border); padding-left: 12px; }
 .example-ja { font-size: 1.2rem; }
 .example-ru { color: var(--muted); margin-top: 2px; }
+
+/* --- Тексты (reading section) --- */
+.text-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.text-list-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px; text-decoration: none; color: var(--text); }
+.text-list-title { flex: 1; font-weight: 500; }
+.text-read-badge { color: var(--ok); font-weight: 700; }
+
+.text-detail { max-width: min(52rem, 100%); }
+.text-body { font-family: var(--font-ja); line-height: 2; margin: 1rem 0; }
+.text-paragraph { margin: 0 0 1em; }
+.text-translation { color: var(--muted); margin: 1rem 0; }
+.text-translation p { margin: 0 0 0.6em; }
+.text-question { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.text-done { margin-top: 1.5rem; font-size: 1.05rem; color: var(--ok); font-weight: 600; }
 
 .today { max-width: min(40rem, 100%); padding: 2rem clamp(1rem, 3vw, 2.5rem); text-align: center; }
 .today-line { font-size: 1.1rem; margin: 1rem 0; }
@@ -295,7 +310,6 @@ body { margin: 0; background: var(--bg); color: var(--text); }
   padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 0.5rem;
   text-decoration: none; color: var(--text);
 }
-.course-item-link--locked { opacity: 0.55; }
 .course-item-title { flex: 1; font-weight: 500; overflow-wrap: anywhere; }
 .course-item-state { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
 .course-item-state[data-state='current'] { color: var(--accent); font-weight: 600; }
