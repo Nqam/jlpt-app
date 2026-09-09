@@ -98,7 +98,7 @@ describe('storage/user-db', () => {
     vi.useRealTimers();
   });
 
-  it('counts review logs by day and cards introduced on/after a cutoff', async () => {
+  it('counts review logs by day', async () => {
     const f = fakeAdapter(null);
     const db = await UserDb.open(f.adapter, '0.2.0', now);
     db.insertReviewLog({
@@ -110,20 +110,6 @@ describe('storage/user-db', () => {
       day_key: '2026-02-01', rating: 3, state_before: 0, stability_after: 3, elapsed_ms: 3000,
     });
     expect(db.reviewCountsByDay()).toEqual([{ day_key: '2026-02-01', count: 2 }]);
-    db.upsertCard({
-      item_type: 'grammar', item_id: 'a', due: 'x', stability: 1, difficulty: 1,
-      elapsed_days: 0, scheduled_days: 0, learning_steps: 0, reps: 0, lapses: 0,
-      state: 0, last_review: null, introduced_at: '2026-02-01T09:00:00.000Z',
-    });
-    db.upsertCard({
-      item_type: 'vocab', item_id: 'v1', due: 'x', stability: 1, difficulty: 1,
-      elapsed_days: 0, scheduled_days: 0, learning_steps: 0, reps: 0, lapses: 0,
-      state: 0, last_review: null, introduced_at: '2026-02-01T09:30:00.000Z',
-    });
-    expect(db.introducedOnOrAfter('2026-02-01T00:00:00.000Z')).toBe(2); // all types
-    expect(db.introducedOnOrAfter('2026-02-01T00:00:00.000Z', 'grammar')).toBe(1); // filtered
-    expect(db.introducedOnOrAfter('2026-02-01T00:00:00.000Z', 'vocab')).toBe(1);
-    expect(db.introducedOnOrAfter('2026-02-02T00:00:00.000Z', 'grammar')).toBe(0);
   });
 
   it('materialises the file once on first open and flush is a no-op when clean', async () => {

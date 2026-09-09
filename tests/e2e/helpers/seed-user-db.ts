@@ -35,7 +35,6 @@ export async function writeSeededUserDb(
   opts: {
     learnedIds: string[];
     dueIds: string[];
-    newPerDay?: number;
     placementOffered?: boolean;
     unlockedLevels?: string[];
     /** Kanji content ids to seed as cards due now (item_type = 'kanji'). */
@@ -57,7 +56,6 @@ export async function writeSeededUserDb(
     placement_offered: opts.placementOffered ?? false,
     unlocked_levels: opts.unlockedLevels ?? [],
   };
-  if (opts.newPerDay !== undefined) settings.new_per_day = opts.newPerDay;
   const setS = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
   for (const [k, v] of Object.entries(settings)) setS.run([k, JSON.stringify(v)]);
   setS.free();

@@ -109,16 +109,6 @@ export class UserDb {
     return r[0]!.values.map((v) => ({ day_key: String(v[0]), count: Number(v[1]) }));
   }
 
-  introducedOnOrAfter(iso: string, itemType?: string): number {
-    const r = itemType
-      ? this.db.exec(
-          'SELECT COUNT(*) FROM cards WHERE introduced_at >= ? AND item_type = ?',
-          [iso, itemType],
-        )
-      : this.db.exec('SELECT COUNT(*) FROM cards WHERE introduced_at >= ?', [iso]);
-    return Number(r[0]!.values[0]![0]);
-  }
-
   export(): Uint8Array {
     return this.db.export();
   }
