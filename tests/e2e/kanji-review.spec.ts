@@ -4,19 +4,19 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { writeSeededUserDb } from './helpers/seed-user-db';
 
-test('a kanji new card is learned and reviewed, and persists as item_type kanji', async () => {
+test('a seeded kanji card is reviewed and persists as item_type kanji', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'jlpt-e2e-kanji-review-'));
-  // Seed new_per_day=6 (empty deck, so nothing is due) instead of relying on
-  // the app default (5): with 3 item types sharing the budget, `allocateBudget`
-  // in src/core/scheduler.ts water-fills a floor(total/count) share to every
-  // type with room, with any remainder going to the first types in
-  // `ITEM_TYPES`'s order. 6 divides evenly by 3, so kanji is guaranteed 2 new
-  // items regardless of `ITEM_TYPES`'s order or content availability elsewhere
-  // -- unlike the previous default-5 split, which could leave kanji with as
-  // little as 1 new card depending on `ITEM_TYPES` order, making this spec's
-  // "keep clicking until the summary shows" loop fragile to unrelated future
-  // changes. This mirrors the same fix already applied in vocab-review.spec.ts.
-  await writeSeededUserDb(userData, { learnedIds: [], dueIds: [], newPerDay: 6, placementOffered: true });
+  // The new-card drip is gone, so there is no longer any automatic source of
+  // fresh kanji cards. Seed one real kanji card due now (item_type = 'kanji')
+  // so the session has a kanji review step to walk. placementOffered keeps the
+  // Today screen from showing the placement offer instead of the "Начать" link
+  // (there are no grammar cards to suppress it otherwise).
+  await writeSeededUserDb(userData, {
+    learnedIds: [],
+    dueIds: [],
+    dueKanjiIds: ['n5-一'],
+    placementOffered: true,
+  });
   const app = await electron.launch({
     args: [join(process.cwd(), 'out/main/main.js'), `--user-data-dir=${userData}`],
   });
@@ -25,9 +25,9 @@ test('a kanji new card is learned and reviewed, and persists as item_type kanji'
 
   await win.getByRole('link', { name: /начать/i }).click();
 
-  // Walk through the whole base session (grammar + whatever kanji share the
-  // shared new_per_day budget landed) the same generic way minitest.spec.ts
-  // does: keep clicking whatever control is available until the summary shows.
+  // Walk the session (one seeded kanji review step) the same generic way
+  // minitest.spec.ts does: keep clicking whatever control is available until
+  // the summary shows.
   for (let guard = 0; guard < 120; guard++) {
     if (await win.getByText(/Верно \d+\/\d+/).count()) break;
 
@@ -45,10 +45,10 @@ test('a kanji new card is learned and reviewed, and persists as item_type kanji'
 
   await app.close();
 
-  // Re-launch on the SAME userData dir and confirm at least one kanji card
-  // was actually persisted (item_type = 'kanji') -- proves the whole
-  // learn -> review -> grade -> upsertCard round trip really happened for
-  // kanji, not just grammar.
+  // Re-launch on the SAME userData dir and confirm a kanji card is present and
+  // the db still opens cleanly after the kanji review -> grade -> upsertCard
+  // round trip (the card is seeded, so this is a persistence/no-corruption
+  // check rather than proof the card was created from scratch).
   const app2 = await electron.launch({
     args: [join(process.cwd(), 'out/main/main.js'), `--user-data-dir=${userData}`],
   });

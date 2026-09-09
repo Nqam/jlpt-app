@@ -10,7 +10,12 @@ import { writeSeededUserDb } from './helpers/seed-user-db';
 // so a card graded within ~500 ms of closing was lost — this test is RED then.
 test('a card graded just before closing the window persists across restart', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'jlpt-e2e-persist-'));
-  await writeSeededUserDb(userData, { learnedIds: [], dueIds: [], placementOffered: true });
+  // New-card drip is gone: seed two due grammar cards so there is a session to
+  // start and a review to grade.
+  await writeSeededUserDb(userData, {
+    learnedIds: [],
+    dueIds: ['n5-desu', 'n5-ka-question'],
+  });
   const launch = () =>
     electron.launch({
       args: [join(process.cwd(), 'out/main/main.js'), `--user-data-dir=${userData}`],
@@ -22,14 +27,12 @@ test('a card graded just before closing the window persists across restart', asy
     state: 'attached',
     timeout: 20_000,
   });
-  await expect(win.getByText(/5 новых/)).toBeVisible({ timeout: 20_000 });
+  await expect(win.getByText(/· стрик 0/)).toBeVisible({ timeout: 20_000 });
 
   await win.getByRole('link', { name: /начать/i }).click();
-  await win.getByRole('button', { name: /понятно/i }).click();
   // Answer the question (choice/cloze options, or assemble tokens then its
   // own "Готово"), then advance with "Далее" so the review actually grades
-  // and persists — the pre-Plan-3 "Показать"/"Хорошо" flow this test used no
-  // longer exists (ReviewScreen was rewritten to the question-based flow).
+  // and persists — sessions no longer have a learn ("Понятно") step.
   const done = win.getByRole('button', { name: /^готово$/i });
   if (await done.count()) {
     const bank = win.locator('.q-bank .q-tok');
@@ -57,9 +60,10 @@ test('a card graded just before closing the window persists across restart', asy
     state: 'attached',
     timeout: 20_000,
   });
-  // One new card was introduced today -> the daily new budget is now 4, not 5.
-  await expect(win.getByText(/4 новых/)).toBeVisible({ timeout: 20_000 });
-  await expect(win.getByText(/5 новых/)).toHaveCount(0);
+  // The one grade taken just before closing survived the flush handshake:
+  // a review happened today, so the streak ticked to 1.
+  await expect(win.getByText(/· стрик 1/)).toBeVisible({ timeout: 20_000 });
+  await expect(win.getByText(/· стрик 0/)).toHaveCount(0);
 
   await app.close();
 });

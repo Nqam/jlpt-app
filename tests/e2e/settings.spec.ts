@@ -12,7 +12,7 @@ test('changing settings on the Settings screen persists across app restarts', as
   await win.waitForSelector('[data-testid="user-db-ready"]', { state: 'attached', timeout: 20_000 });
 
   await win.getByRole('link', { name: /настройки/i }).click();
-  await win.getByLabel(/новых карточек в день/i).fill('8');
+  // (The "новых карточек в день" field was removed with the new-card drip.)
   await win.getByLabel(/показывать фуригану/i).uncheck();
 
   await app.close();
@@ -23,7 +23,6 @@ test('changing settings on the Settings screen persists across app restarts', as
   const win2 = await app2.firstWindow();
   await win2.waitForSelector('[data-testid="user-db-ready"]', { state: 'attached', timeout: 20_000 });
   await win2.getByRole('link', { name: /настройки/i }).click();
-  await expect(win2.getByLabel(/новых карточек в день/i)).toHaveValue('8');
   await expect(win2.getByLabel(/показывать фуригану/i)).not.toBeChecked();
   await app2.close();
 });

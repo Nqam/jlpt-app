@@ -6,7 +6,12 @@ import { writeSeededUserDb } from './helpers/seed-user-db';
 
 test('first run: a question-based session records progress and returns to Today', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'jlpt-e2e-review-'));
-  await writeSeededUserDb(userData, { learnedIds: [], dueIds: [], placementOffered: true });
+  // The new-card drip is gone, so seed the review queue directly. 3 due grammar
+  // cards -> a 3-step session and, since < 5 grammar are learned, no mini-test.
+  await writeSeededUserDb(userData, {
+    learnedIds: [],
+    dueIds: ['n5-desu', 'n5-ka-question', 'n5-masu-form'],
+  });
   const app = await electron.launch({
     args: [join(process.cwd(), 'out/main/main.js'), `--user-data-dir=${userData}`],
   });
@@ -15,10 +20,10 @@ test('first run: a question-based session records progress and returns to Today'
 
   await win.getByRole('link', { name: /начать/i }).click();
 
-  // 5 new grammar cards. Each: learn ("Понятно"), then answer the question
-  // (first option is not always correct — either way "Далее" advances), 5x.
-  for (let i = 0; i < 5; i++) {
-    await win.getByRole('button', { name: /понятно/i }).click();
+  // 3 due grammar review steps. Each: answer the question (first option is not
+  // always correct — either way "Далее" advances), 3x. Sessions no longer have
+  // learn ("Понятно") steps — new material comes from the course now.
+  for (let i = 0; i < 3; i++) {
     // answer: click the first choice / or assemble "Готово" after placing tokens
     const done = win.getByRole('button', { name: /^готово$/i });
     if (await done.count()) {
@@ -34,7 +39,7 @@ test('first run: a question-based session records progress and returns to Today'
     await win.getByRole('button', { name: /далее/i }).click();
   }
 
-  await expect(win.getByText(/Верно \d\/5/)).toBeVisible({ timeout: 20_000 });
+  await expect(win.getByText(/Верно \d\/3/)).toBeVisible({ timeout: 20_000 });
   await expect(win.getByText(/мини-тест —/)).toBeVisible(); // < 5 learned -> no mini-test
   await win.getByRole('button', { name: /готово/i }).click();
   await expect(win.getByRole('heading', { name: /сегодня/i })).toBeVisible({ timeout: 20_000 });
@@ -46,7 +51,7 @@ test('"Подробнее" on a revealed question opens the grammar detail scree
   // Single due card -> exactly one review step, no learn/mini-test noise, so
   // the breakdown link appears after one answer regardless of question kind.
   const userData = mkdtempSync(join(tmpdir(), 'jlpt-e2e-review-more-'));
-  await writeSeededUserDb(userData, { learnedIds: [], dueIds: ['n5-desu'], newPerDay: 0 });
+  await writeSeededUserDb(userData, { learnedIds: [], dueIds: ['n5-desu'] });
 
   const app = await electron.launch({
     args: [join(process.cwd(), 'out/main/main.js'), `--user-data-dir=${userData}`],

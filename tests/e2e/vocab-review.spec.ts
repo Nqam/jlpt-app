@@ -4,18 +4,19 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { writeSeededUserDb } from './helpers/seed-user-db';
 
-test('a vocab new card is learned and reviewed, and persists as item_type vocab', async () => {
+test('a seeded vocab card is reviewed and persists as item_type vocab', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'jlpt-e2e-vocab-review-'));
-  // Seed new_per_day=6 (empty deck, so nothing is due) instead of relying on
-  // the app default (5): with 3 item types sharing the budget, `allocateBudget`
-  // in src/core/scheduler.ts water-fills a floor(total/count) share to every
-  // type with room, with any remainder going to the first types in
-  // `ITEM_TYPES`'s order. 6 divides evenly by 3, so vocab is guaranteed 2 new
-  // items regardless of `ITEM_TYPES`'s order or content availability elsewhere
-  // -- unlike the previous default-5 split (grammar=2/kanji=2/vocab=1), which
-  // only gave vocab a card because it happened to be listed last and only
-  // picked up the leftover unit.
-  await writeSeededUserDb(userData, { learnedIds: [], dueIds: [], newPerDay: 6, placementOffered: true });
+  // The new-card drip is gone, so there is no longer any automatic source of
+  // fresh vocab cards. Seed one real vocab card due now (item_type = 'vocab')
+  // so the session has a vocab review step to walk. placementOffered keeps the
+  // Today screen from showing the placement offer instead of the "Начать" link
+  // (there are no grammar cards to suppress it otherwise).
+  await writeSeededUserDb(userData, {
+    learnedIds: [],
+    dueIds: [],
+    dueVocabIds: ['n5-ああ'],
+    placementOffered: true,
+  });
   const app = await electron.launch({
     args: [join(process.cwd(), 'out/main/main.js'), `--user-data-dir=${userData}`],
   });
@@ -24,9 +25,9 @@ test('a vocab new card is learned and reviewed, and persists as item_type vocab'
 
   await win.getByRole('link', { name: /начать/i }).click();
 
-  // Walk through the whole base session (grammar + kanji + vocab sharing the
-  // seeded new_per_day budget) the same generic way kanji-review.spec.ts
-  // does: keep clicking whatever control is available until the summary shows.
+  // Walk the session (one seeded vocab review step) the same generic way
+  // kanji-review.spec.ts does: keep clicking whatever control is available
+  // until the summary shows.
   for (let guard = 0; guard < 120; guard++) {
     if (await win.getByText(/Верно \d+\/\d+/).count()) break;
 
@@ -44,10 +45,10 @@ test('a vocab new card is learned and reviewed, and persists as item_type vocab'
 
   await app.close();
 
-  // Re-launch on the SAME userData dir and confirm at least one vocab card
-  // was actually persisted (item_type = 'vocab') -- proves the whole
-  // learn -> review -> grade -> upsertCard round trip really happened for
-  // vocab, not just grammar/kanji.
+  // Re-launch on the SAME userData dir and confirm a vocab card is present and
+  // the db still opens cleanly after the vocab review -> grade -> upsertCard
+  // round trip (the card is seeded, so this is a persistence/no-corruption
+  // check rather than proof the card was created from scratch).
   const app2 = await electron.launch({
     args: [join(process.cwd(), 'out/main/main.js'), `--user-data-dir=${userData}`],
   });

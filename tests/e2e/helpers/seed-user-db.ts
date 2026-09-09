@@ -38,6 +38,10 @@ export async function writeSeededUserDb(
     newPerDay?: number;
     placementOffered?: boolean;
     unlockedLevels?: string[];
+    /** Kanji content ids to seed as cards due now (item_type = 'kanji'). */
+    dueKanjiIds?: string[];
+    /** Vocab content ids to seed as cards due now (item_type = 'vocab'). */
+    dueVocabIds?: string[];
   },
 ): Promise<void> {
   const wasm = readFileSync(createRequire(import.meta.url).resolve('sql.js/dist/sql-wasm.wasm'));
@@ -70,14 +74,25 @@ export async function writeSeededUserDb(
   const insert = db.prepare(
     `INSERT INTO cards (item_type,item_id,due,stability,difficulty,elapsed_days,
       scheduled_days,learning_steps,reps,lapses,state,last_review,introduced_at)
-     VALUES ('grammar',?,?,?,?,0,1,0,?,0,?,?,?)`,
+     VALUES (?,?,?,?,?,0,1,0,?,0,?,?,?)`,
   );
+  // dueIds win over learnedIds when an id appears in both (same as the old
+  // flat loop); kanji/vocab groups are keyed by type so they never collide
+  // with a same-named grammar id.
+  const groups: { type: string; ids: string[]; due: string }[] = [
+    { type: 'grammar', ids: opts.dueIds, due: past },
+    { type: 'grammar', ids: opts.learnedIds, due: future },
+    { type: 'kanji', ids: opts.dueKanjiIds ?? [], due: past },
+    { type: 'vocab', ids: opts.dueVocabIds ?? [], due: past },
+  ];
   const seen = new Set<string>();
-  for (const id of [...opts.dueIds, ...opts.learnedIds]) {
-    if (seen.has(id)) continue;
-    seen.add(id);
-    const due = opts.dueIds.includes(id) ? past : future;
-    insert.run([id, due, 12, 6, 5, 2, intro, intro]);
+  for (const g of groups) {
+    for (const id of g.ids) {
+      const key = `${g.type}:${id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      insert.run([g.type, id, g.due, 12, 6, 5, 2, intro, intro]);
+    }
   }
   insert.free();
 

@@ -19,9 +19,9 @@ test('seeded learned deck: session ends with a mini-test and a retry round', asy
   test.setTimeout(90_000);
 
   const userData = mkdtempSync(join(tmpdir(), 'jlpt-e2e-minitest-'));
-  // 5 learned + due so they also form review steps; new_per_day 0 keeps the
-  // session to "5 reviews + mini-test".
-  await writeSeededUserDb(userData, { learnedIds: N5_IDS, dueIds: N5_IDS, newPerDay: 0 });
+  // 5 learned + due so they also form review steps. With the new-card drip
+  // gone, the session is exactly "5 reviews + mini-test".
+  await writeSeededUserDb(userData, { learnedIds: N5_IDS, dueIds: N5_IDS });
 
   const app = await electron.launch({
     args: [join(process.cwd(), 'out/main/main.js'), `--user-data-dir=${userData}`],
