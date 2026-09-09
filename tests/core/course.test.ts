@@ -3,7 +3,7 @@ import type { LessonMeta } from '@/core/types';
 import {
   getCourseStep, setCourseStep, markLessonComplete, isLessonComplete,
   courseCompletedIds, courseLessonStates, currentMandatoryLessonId,
-  nextUnlockedLessonId, migrateTextsRead,
+  nextUnlockedLessonId, migrateTextsRead, migrateCourseKeys,
   currentCourseLessonId, courseLessonState, nextCourseLessonId,
 } from '@/core/course';
 
@@ -171,5 +171,30 @@ describe('migrateTextsRead', () => {
     migrateTextsRead(u);
     expect(courseCompletedIds(u)).toEqual(['b']);
     expect(u.getSetting('texts_read_ids', [])).toEqual([]); // still consumed
+  });
+});
+
+describe('migrateCourseKeys', () => {
+  const fakeContent = {
+    getGrammar: (id: string) => (id.startsWith('n5-') ? ({ id } as never) : null),
+  };
+
+  it('moves non-grammar completed ids to texts_read_ids, once', () => {
+    const u = fakeUser({
+      course_completed_ids: ['n5-de-particle', 'hanami', 'konbini'],
+      course_progress: { 'n5-de-particle': { step: 1 }, hanami: { step: 2 } },
+      texts_read_ids: ['kitsune'],
+    });
+    migrateCourseKeys(u as never, fakeContent as never);
+    expect(u.getSetting('course_completed_ids', [])).toEqual(['n5-de-particle']);
+    expect(new Set(u.getSetting<string[]>('texts_read_ids', []))).toEqual(
+      new Set(['kitsune', 'hanami', 'konbini']),
+    );
+    expect(u.getSetting('course_progress', {})).toEqual({ 'n5-de-particle': { step: 1 } });
+    expect(u.getSetting('course_keys_migrated', false)).toBe(true);
+    // idempotent: a second run with grammar ids present does nothing
+    u.setSetting('course_completed_ids', ['n5-de-particle', 'stray']);
+    migrateCourseKeys(u as never, fakeContent as never);
+    expect(u.getSetting('course_completed_ids', [])).toEqual(['n5-de-particle', 'stray']);
   });
 });

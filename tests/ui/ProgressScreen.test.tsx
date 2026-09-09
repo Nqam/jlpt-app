@@ -12,7 +12,7 @@ const LESSONS = [
   { id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' },
 ];
 vi.mock('@/ui/useContentDb', () => ({
-  useContentDb: () => ({ listLessons: () => LESSONS }),
+  useContentDb: () => ({ listCourseGrammar: () => LESSONS }),
   useLevels: () => [],
   useEffectiveLevels: () => [
     { code: 'N5', ord: 1, titleRu: 'N5', status: 'available', rawStatus: 'available' },

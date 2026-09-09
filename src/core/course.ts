@@ -120,6 +120,34 @@ export function migrateTextsRead(user: UserLike): void {
   user.setSetting('texts_read_ids', []);
 }
 
+type GrammarLookup = { getGrammar(id: string): unknown | null };
+
+/**
+ * One-shot: the course used to store text-lesson ids in `course_completed_ids`
+ * (plan 5-2's `migrateTextsRead`). The course is grammar points now, so any id
+ * that is not a grammar point is an old text id — move it to `texts_read_ids`
+ * and drop it from the course keys. Runs once (marker `course_keys_migrated`).
+ */
+export function migrateCourseKeys(user: UserLike, content: GrammarLookup): void {
+  if (user.getSetting<boolean>('course_keys_migrated', false)) return;
+
+  const completed = courseCompletedIds(user);
+  const stray = completed.filter((id) => content.getGrammar(id) == null);
+  if (stray.length > 0) {
+    const read = new Set(user.getSetting<string[]>('texts_read_ids', []));
+    for (const id of stray) read.add(id);
+    user.setSetting('texts_read_ids', [...read]);
+    user.setSetting(K_COMPLETED, completed.filter((id) => content.getGrammar(id) != null));
+
+    const progress = { ...user.getSetting<ProgressMap>(K_PROGRESS, {}) };
+    for (const id of Object.keys(progress)) {
+      if (content.getGrammar(id) == null) delete progress[id];
+    }
+    user.setSetting(K_PROGRESS, progress);
+  }
+  user.setSetting('course_keys_migrated', true);
+}
+
 /** First course point the user has neither finished nor already has a card for. */
 export function currentCourseLessonId(
   points: readonly { id: string }[],

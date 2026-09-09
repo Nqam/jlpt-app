@@ -4,7 +4,7 @@ import { useUserDb } from '@/ui/useUserDb';
 import { useContentDb } from '@/ui/useContentDb';
 import { daySummary } from '@/core/scheduler';
 import { streak } from '@/core/progress';
-import { currentMandatoryLessonId, courseCompletedIds } from '@/core/course';
+import { currentCourseLessonId, courseCompletedIds } from '@/core/course';
 
 function relative(iso: string, now: Date): string {
   const ms = new Date(iso).getTime() - now.getTime();
@@ -58,10 +58,11 @@ export function TodayScreen() {
   const s = daySummary(user, content, now);
   const st = streak(user, now);
 
-  const lessons = content.listLessons();
+  const points = content.listCourseGrammar();
   const completedSet = new Set(courseCompletedIds(user));
-  const curId = currentMandatoryLessonId(lessons, completedSet);
-  const curLesson = curId ? lessons.find((l) => l.id === curId) ?? null : null;
+  const hasCard = (id: string) => user.getCard('grammar', id) != null;
+  const curId = currentCourseLessonId(points, completedSet, hasCard);
+  const curPoint = curId ? points.find((p) => p.id === curId) ?? null : null;
 
   const miniMark = s.miniTestEligible ? (s.reviewedToday > 0 ? '✓' : '—') : '—';
   const showStart =
@@ -93,10 +94,9 @@ export function TodayScreen() {
           {showStart && <Link className="btn-primary" to="/review">Начать</Link>}
         </>
       )}
-      {curLesson ? (
-        <Link className="btn-ghost today-course" to={`/lesson/${curLesson.id}`}>
-          {completedSet.size === 0 ? 'Начать курс' : 'Продолжить курс'} · Урок{' '}
-          {curLesson.stage}: {curLesson.title}
+      {curPoint ? (
+        <Link className="btn-ghost today-course" to={`/course/${curPoint.id}`}>
+          {completedSet.size === 0 ? 'Начать курс' : 'Продолжить курс'} · {curPoint.title}
         </Link>
       ) : (
         <Link className="btn-ghost today-course" to="/course">Курс</Link>

@@ -11,7 +11,7 @@ const summary = {
 };
 
 const courseState = { currentId: null as string | null, completed: [] as string[] };
-const lessons: { value: Array<{ id: string; stage: number; kind: string; title: string; introducesCount: number; isFreeReading: boolean }> } = {
+const points: { value: Array<{ id: string; title: string }> } = {
   value: [],
 };
 
@@ -27,15 +27,16 @@ vi.mock('@/ui/useUserDb', () => ({
     getSetting: (key: string, fallback: unknown) => userState.settings[key] ?? fallback,
     setSetting,
     allCards: () => userState.grammarCards,
+    getCard: () => null,
   }),
 }));
 vi.mock('@/ui/useContentDb', () => ({
-  useContentDb: () => ({ listLessons: () => lessons.value }),
+  useContentDb: () => ({ listCourseGrammar: () => points.value }),
 }));
 vi.mock('@/core/scheduler', () => ({ daySummary: () => summary.value }));
 vi.mock('@/core/progress', () => ({ streak: () => ({ current: 4, best: 9 }) }));
 vi.mock('@/core/course', () => ({
-  currentMandatoryLessonId: () => courseState.currentId,
+  currentCourseLessonId: () => courseState.currentId,
   courseCompletedIds: () => courseState.completed,
 }));
 
@@ -51,7 +52,7 @@ describe('TodayScreen', () => {
     userState.grammarCards = [{ item_id: 'p1' }];
     courseState.currentId = null;
     courseState.completed = [];
-    lessons.value = [];
+    points.value = [];
     setSetting.mockClear();
   });
 
@@ -86,31 +87,27 @@ describe('TodayScreen', () => {
     expect(screen.getByRole('link', { name: /курс/i })).toHaveAttribute('href', '/course');
   });
 
-  it('links the course card to the current mandatory lesson when one exists, labelled "Начать курс" before any lesson is done', () => {
+  it('links the course card to the current grammar point when one exists, labelled "Начать курс" before any point is done', () => {
     summary.value = { ...summary.value, dueCount: 0, reviewedToday: 0, allDone: true, miniTestEligible: false };
     courseState.currentId = 'l-5';
     courseState.completed = [];
-    lessons.value = [
-      { id: 'l-5', stage: 5, kind: 'story', title: 'Утро', introducesCount: 2, isFreeReading: false },
-    ];
+    points.value = [{ id: 'l-5', title: 'Утро' }];
     renderScreen();
-    const link = screen.getByRole('link', { name: /Урок 5/ });
-    expect(link).toHaveAttribute('href', '/lesson/l-5');
+    const link = screen.getByRole('link', { name: /Утро/ });
+    expect(link).toHaveAttribute('href', '/course/l-5');
     expect(link).toHaveTextContent(/Начать курс/);
-    expect(link).toHaveTextContent(/Урок 5/);
     expect(link).toHaveTextContent(/Утро/);
+    expect(link).not.toHaveTextContent(/Урок 5/);
   });
 
-  it('labels the course card "Продолжить курс" once a lesson has been completed', () => {
+  it('labels the course card "Продолжить курс" once a point has been completed', () => {
     summary.value = { ...summary.value, dueCount: 0, reviewedToday: 0, allDone: true, miniTestEligible: false };
     courseState.currentId = 'l-5';
     courseState.completed = ['l-4'];
-    lessons.value = [
-      { id: 'l-5', stage: 5, kind: 'story', title: 'Утро', introducesCount: 2, isFreeReading: false },
-    ];
+    points.value = [{ id: 'l-5', title: 'Утро' }];
     renderScreen();
-    const link = screen.getByRole('link', { name: /Урок 5/ });
-    expect(link).toHaveAttribute('href', '/lesson/l-5');
+    const link = screen.getByRole('link', { name: /Утро/ });
+    expect(link).toHaveAttribute('href', '/course/l-5');
     expect(link).toHaveTextContent(/Продолжить курс/);
   });
 
