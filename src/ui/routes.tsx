@@ -6,6 +6,7 @@ import { VocabListScreen } from './screens/VocabListScreen';
 import { VocabDetailScreen } from './screens/VocabDetailScreen';
 import { CourseScreen } from './screens/CourseScreen';
 import { LessonScreen } from './screens/LessonScreen';
+import { GrammarLessonScreen } from './screens/GrammarLessonScreen';
 import { TodayScreen } from './screens/TodayScreen';
 import { ReviewScreen } from './screens/ReviewScreen';
 import { PlacementScreen } from './screens/PlacementScreen';
@@ -30,6 +31,12 @@ function LessonRoute() {
   return <LessonScreen key={id} />;
 }
 
+// Remount the grammar lesson player when only the :grammarId changes.
+function GrammarLessonRoute() {
+  const { grammarId } = useParams();
+  return <GrammarLessonScreen key={grammarId} />;
+}
+
 // Plan 5-2: /texts is now the course. Keep the two redirects so old bookmarks
 // and any lingering links still resolve.
 function TextDetailRedirect() {
@@ -49,6 +56,7 @@ export const routes: RouteObject[] = [
   { path: '/vocab', element: <VocabListScreen /> },
   { path: '/vocab/:id', element: <VocabDetailScreen /> },
   { path: '/course', element: <CourseScreen /> },
+  { path: '/course/:grammarId', element: <GrammarLessonRoute /> },
   { path: '/lesson/:id', element: <LessonRoute /> },
   { path: '/texts', element: <Navigate to="/course" replace /> },
   { path: '/texts/:id', element: <TextDetailRedirect /> },
