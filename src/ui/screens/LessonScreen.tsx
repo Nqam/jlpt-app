@@ -10,6 +10,7 @@ import { LessonNewStep } from '../components/LessonNewStep';
 import { LessonReader } from '../components/LessonReader';
 import { ComprehensionQuiz } from '../components/ComprehensionQuiz';
 import { LessonReinforceStep } from '../components/LessonReinforceStep';
+import { review, newCard } from '@/core/srs';
 
 /** 0 New · 1 Read · 2 Comprehension · 3 Reinforce · 4 Summary */
 const LAST_STEP = 4;
@@ -51,8 +52,23 @@ export function LessonScreen() {
   useEffect(() => {
     if (step !== LAST_STEP || completedRef.current) return;
     completedRef.current = true;
-    if (!isLessonComplete(user, id)) markLessonComplete(user, id);
-  }, [step, user, id]);
+    if (isLessonComplete(user, id)) return;
+
+    const now = new Date();
+    const params = {
+      requestRetention: user.getSetting('fsrs_request_retention', 0.9),
+      maximumInterval: user.getSetting('fsrs_maximum_interval', 365),
+      enableFuzz: user.getSetting('fsrs_enable_fuzz', true),
+    };
+    for (const it of lesson?.introduces ?? []) {
+      if (it.role !== 'introduce') continue;
+      if (user.getCard(it.type, it.id)) continue;
+      // Rating 3 ("Хорошо"): just taught — should resurface in ~10 min / next day.
+      const { card } = review(newCard(it.type, it.id, now), 3, now, 0, params);
+      user.upsertCard(card);
+    }
+    markLessonComplete(user, id);
+  }, [step, user, id, lesson]);
 
   if (!lesson) {
     return (

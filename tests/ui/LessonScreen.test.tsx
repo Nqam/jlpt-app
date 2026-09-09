@@ -17,6 +17,12 @@ const setSetting = vi.fn((key: string, value: unknown) => {
   if (key === 'course_progress') store.progress = value as Record<string, { step: number }>;
   if (key === 'course_completed_ids') store.completed = value as string[];
 });
+const cards = new Map<string, unknown>();
+const getCard = vi.fn((t: string, i: string) => cards.get(`${t}:${i}`) ?? null);
+const upsertCard = vi.fn((c: { item_type: string; item_id: string }) => {
+  cards.set(`${c.item_type}:${c.item_id}`, c);
+});
+const insertReviewLog = vi.fn();
 vi.mock('@/ui/useUserDb', () => ({
   useUserDb: () => ({
     getSetting: (key: string, fb: unknown) => {
@@ -25,6 +31,9 @@ vi.mock('@/ui/useUserDb', () => ({
       return fb;
     },
     setSetting,
+    getCard,
+    upsertCard,
+    insertReviewLog,
   }),
 }));
 
@@ -43,12 +52,27 @@ const freeLesson: LessonFull = {
   ],
   introduces: [], markers: [],
 };
+const introLesson: LessonFull = {
+  id: 'l-intro', stage: 5, kind: 'text', title: 'Урок с грамматикой',
+  introducesCount: 3, isFreeReading: false,
+  bodyRuby: '文[ぶん]です。', translationRu: 'Предложение.',
+  questions: [{ prompt: 'Q?', choices: ['a', 'b', 'c'], answerIndex: 0 }],
+  introduces: [
+    { type: 'grammar', id: 'g1', role: 'introduce' },
+    { type: 'vocab', id: 'v1', role: 'introduce' },
+    { type: 'grammar', id: 'g-known', role: 'introduce' },
+    { type: 'kanji', id: 'k-review', role: 'review' },
+  ],
+  markers: [],
+};
 const metas: LessonMeta[] = [
   { id: 'n5-hanami', stage: 2, kind: 'text', title: 'お花見', introducesCount: 0, isFreeReading: true },
   { id: 'n5-konbini', stage: 4, kind: 'text', title: 'コンビニ', introducesCount: 0, isFreeReading: true },
+  { id: 'l-intro', stage: 5, kind: 'text', title: 'Урок с грамматикой', introducesCount: 3, isFreeReading: false },
 ];
 const fakeDb = {
-  getLesson: (id: string) => (id === 'n5-hanami' ? freeLesson : null),
+  getLesson: (id: string) =>
+    id === 'n5-hanami' ? freeLesson : id === 'l-intro' ? introLesson : null,
   listLessons: () => metas,
   getGrammar: () => null, getVocab: () => null, getKanji: () => null,
   listVocab: () => [], listKanji: () => [],
@@ -71,6 +95,8 @@ describe('LessonScreen', () => {
   beforeEach(() => {
     store.progress = {}; store.completed = [];
     setSetting.mockClear();
+    getCard.mockClear(); upsertCard.mockClear(); insertReviewLog.mockClear();
+    cards.clear();
   });
 
   it('a free-reading lesson skips step 0 (New) and step 3 (Reinforce): goes Read -> Comprehension -> Summary', () => {
@@ -129,6 +155,37 @@ describe('LessonScreen', () => {
     store.completed = ['n5-hanami'];
     store.progress = { 'n5-hanami': { step: 4 } };
     renderAt('/lesson/n5-hanami');
+    expect(setSetting).not.toHaveBeenCalledWith('course_completed_ids', expect.anything());
+  });
+
+  it('on first completion, creates an FSRS card (rating 3) for each un-carded introduce, and no review log', () => {
+    cards.clear();
+    cards.set('grammar:g-known', { item_type: 'grammar', item_id: 'g-known' }); // already carded
+    store.progress = { 'l-intro': { step: 4 } };
+    store.completed = [];
+    renderAt('/lesson/l-intro');
+    expect(screen.getByText(/Урок пройден/)).toBeInTheDocument();
+    // g1 + v1 get cards; g-known skipped (has card); k-review skipped (role review)
+    expect(upsertCard).toHaveBeenCalledTimes(2);
+    const carded = upsertCard.mock.calls
+      .map((c) => `${c[0].item_type}:${c[0].item_id}`)
+      .sort();
+    expect(carded).toEqual(['grammar:g1', 'vocab:v1']);
+    // rating-3 review of a fresh card advances it past state 0 (New)
+    for (const c of upsertCard.mock.calls) {
+      expect((c[0] as unknown as { reps: number; state: number }).reps).toBe(1);
+      expect((c[0] as unknown as { reps: number; state: number }).state).not.toBe(0);
+    }
+    expect(insertReviewLog).not.toHaveBeenCalled();
+    expect(setSetting).toHaveBeenCalledWith('course_completed_ids', ['l-intro']);
+  });
+
+  it('does not create cards again when the lesson was already complete', () => {
+    cards.clear();
+    store.progress = { 'l-intro': { step: 4 } };
+    store.completed = ['l-intro'];
+    renderAt('/lesson/l-intro');
+    expect(upsertCard).not.toHaveBeenCalled();
     expect(setSetting).not.toHaveBeenCalledWith('course_completed_ids', expect.anything());
   });
 });
