@@ -4,6 +4,7 @@ import {
   getCourseStep, setCourseStep, markLessonComplete, isLessonComplete,
   courseCompletedIds, courseLessonStates, currentMandatoryLessonId,
   nextUnlockedLessonId, migrateTextsRead,
+  currentCourseLessonId, courseLessonState, nextCourseLessonId,
 } from '@/core/course';
 
 /** Minimal in-memory UserDb stand-in: settings only. */
@@ -116,6 +117,38 @@ describe('nextUnlockedLessonId', () => {
   it('returns null when nothing after afterId is unlocked', () => {
     // m1 not done -> m2 locked; nothing unlocked after r-a
     expect(nextUnlockedLessonId(lessons, new Set(), 'r-a')).toBeNull();
+  });
+});
+
+const pts = [{ id: 'g1' }, { id: 'g2' }, { id: 'g3' }, { id: 'g4' }];
+
+describe('grammar course', () => {
+  it('currentCourseLessonId skips completed and already-carded points', () => {
+    const completed = new Set(['g1']);
+    const carded = new Set(['g2']); // known from placement
+    const cur = currentCourseLessonId(pts, completed, (id) => carded.has(id));
+    expect(cur).toBe('g3');
+  });
+
+  it('currentCourseLessonId is null when every point is done or carded', () => {
+    const done = new Set(['g1', 'g2', 'g3', 'g4']);
+    expect(currentCourseLessonId(pts, done, () => false)).toBeNull();
+  });
+
+  it('courseLessonState labels done / current / ahead', () => {
+    const completed = new Set(['g1']);
+    const hasCard = (id: string) => id === 'g2';
+    const cur = currentCourseLessonId(pts, completed, hasCard); // 'g3'
+    expect(courseLessonState({ id: 'g1' }, cur, completed, hasCard)).toBe('done');
+    expect(courseLessonState({ id: 'g2' }, cur, completed, hasCard)).toBe('done'); // carded
+    expect(courseLessonState({ id: 'g3' }, cur, completed, hasCard)).toBe('current');
+    expect(courseLessonState({ id: 'g4' }, cur, completed, hasCard)).toBe('ahead');
+  });
+
+  it('nextCourseLessonId returns the next list entry or null at the end', () => {
+    expect(nextCourseLessonId(pts, 'g2')).toBe('g3');
+    expect(nextCourseLessonId(pts, 'g4')).toBeNull();
+    expect(nextCourseLessonId(pts, 'nope')).toBeNull();
   });
 });
 

@@ -119,3 +119,35 @@ export function migrateTextsRead(user: UserLike): void {
   }
   user.setSetting('texts_read_ids', []);
 }
+
+/** First course point the user has neither finished nor already has a card for. */
+export function currentCourseLessonId(
+  points: readonly { id: string }[],
+  completedIds: ReadonlySet<string>,
+  hasCard: (id: string) => boolean,
+): string | null {
+  return points.find((p) => !completedIds.has(p.id) && !hasCard(p.id))?.id ?? null;
+}
+
+export type CourseState = 'done' | 'current' | 'ahead';
+
+export function courseLessonState(
+  point: { id: string },
+  currentId: string | null,
+  completedIds: ReadonlySet<string>,
+  hasCard: (id: string) => boolean,
+): CourseState {
+  if (completedIds.has(point.id) || hasCard(point.id)) return 'done';
+  if (point.id === currentId) return 'current';
+  return 'ahead';
+}
+
+/** The next point after `afterId` in list order, or null. */
+export function nextCourseLessonId(
+  points: readonly { id: string }[],
+  afterId: string,
+): string | null {
+  const i = points.findIndex((p) => p.id === afterId);
+  if (i === -1 || i + 1 >= points.length) return null;
+  return points[i + 1]!.id;
+}
