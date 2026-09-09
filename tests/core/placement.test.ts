@@ -79,8 +79,15 @@ describe('placementCount', () => {
   it('returns the whole section at 100%', () => {
     expect(placementCount(43, 100)).toBe(43);
   });
-  it('caps at 100 for large sections', () => {
-    expect(placementCount(681, 25)).toBe(100); // round(170.25)=170 -> ceil 100
+  it('reflects the true fraction for large sections — no upper cap', () => {
+    expect(placementCount(681, 10)).toBe(68); // round(68.1)
+    expect(placementCount(681, 25)).toBe(170); // round(170.25)
+    expect(placementCount(681, 50)).toBe(341); // round(340.5)
+    expect(placementCount(681, 100)).toBe(681);
+  });
+  it('gives each percentage a distinct count for a large section', () => {
+    const counts = ([10, 25, 50, 100] as const).map((p) => placementCount(681, p));
+    expect(new Set(counts).size).toBe(4);
   });
   it('collapses to total when total <= 10', () => {
     expect(placementCount(5, 10)).toBe(5);

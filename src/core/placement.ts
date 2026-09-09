@@ -24,15 +24,17 @@ export interface PlacementState {
 
 /**
  * Question count for a section size and chosen percentage:
- * `clamp(round(pct/100 * total), min(total, 10), min(total, 100))`.
- * So a tiny section (<=10) is always tested whole, a huge one is capped at 100,
- * and anything in between gets at least 10 questions.
+ * `max(round(pct/100 * total), min(total, 10))`.
+ * A tiny section (<=10) is always tested whole; otherwise the count is exactly
+ * the chosen fraction, floored at 10 so a small-percentage pick still asks
+ * enough to place. There is no upper cap — 25% / 50% / 100% must produce
+ * genuinely different test lengths for a large section (e.g. 681 vocab), and the
+ * "≈N" label on the button makes the cost of the larger picks visible.
  */
 export function placementCount(total: number, pct: PlacementPercent): number {
   const raw = Math.round((pct / 100) * total);
   const lo = Math.min(total, 10);
-  const hi = Math.min(total, 100);
-  return Math.min(Math.max(raw, lo), hi);
+  return Math.max(raw, lo);
 }
 
 /**
