@@ -1,7 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import matter from 'gray-matter';
-import type { ItemType } from '../../src/core/types';
 import { parseRuby } from '../../src/core/ruby';
 
 /** Хирагана + катакана (вкл. полуширинную) — не должны попадать в базу чтения "кандзи[чтение]". */
@@ -9,31 +8,16 @@ const KANA = /[぀-ヿｦ-ﾟ]/;
 const REQUIRED_SECTIONS = ['## Текст', '## Перевод', '## Вопросы'];
 const KINDS = new Set(['text', 'dialogue']);
 const SPEAKER_PREFIX = /^[A-Za-zА-Яа-я]{1,8}:\s/;
-/** {{TYPE:id|surface}} — TYPE один из v/g/k; id без '|'; surface без '}}'. */
-const MARKER_RE = /\{\{([vgk]):([^|{}]+)\|([^}]*)\}\}/g;
-const TYPE_MAP: Record<string, ItemType> = { v: 'vocab', g: 'grammar', k: 'kanji' };
-const SENTENCE_ENDS = ['。', '！', '？'];
 
 export interface ParsedLesson {
   id: string;
   stage: number;
   kind: 'text' | 'dialogue';
   title: string;
-  /** Тело "## Текст" с развёрнутыми маркерами, абзацы через "\n\n". */
+  /** Тело "## Текст", абзацы через "\n\n". */
   bodyRuby: string;
   translationRu: string;
   questions: { prompt: string; choices: string[]; answerIndex: number }[];
-  /** Из introduces_grammar / introduces_vocab / introduces_kanji. */
-  introduces: { type: ItemType; id: string }[];
-  /** Сырые id из frontmatter reviews — тип резолвится в validateLessonRefs. */
-  reviews: string[];
-  markers: {
-    type: ItemType;
-    id: string;
-    surface: string;
-    sentenceRuby: string;
-    sentenceRu: string;
-  }[];
 }
 
 export function parseLessonFile(path: string): ParsedLesson {
@@ -51,7 +35,7 @@ export function parseLessonFile(path: string): ParsedLesson {
 
   const rawBody = extractSection(content, '## Текст', ['## Перевод'], path);
   const translationRu = extractSection(content, '## Перевод', ['## Вопросы'], path);
-  const { bodyRuby, markers } = parseMarkers(rawBody, translationRu, path);
+  const bodyRuby = rawBody.trim();
 
   if (bodyRuby.split('\n\n').length !== translationRu.split('\n\n').length) {
     throw new Error(
@@ -66,12 +50,6 @@ export function parseLessonFile(path: string): ParsedLesson {
     }
   }
 
-  const introducesRaw = [
-    ...toIdList(data['introduces_grammar']).map((id) => ({ type: 'grammar' as ItemType, id })),
-    ...toIdList(data['introduces_vocab']).map((id) => ({ type: 'vocab' as ItemType, id })),
-    ...toIdList(data['introduces_kanji']).map((id) => ({ type: 'kanji' as ItemType, id })),
-  ];
-
   return {
     id: String(data['id']),
     stage: Number(data['stage']),
@@ -80,14 +58,7 @@ export function parseLessonFile(path: string): ParsedLesson {
     bodyRuby,
     translationRu,
     questions: parseQuestions(content, path),
-    introduces: introducesRaw,
-    reviews: toIdList(data['reviews']),
-    markers,
   };
-}
-
-function toIdList(v: unknown): string[] {
-  return Array.isArray(v) ? v.map(String) : [];
 }
 
 function extractSection(content: string, heading: string, stops: string[], path: string): string {
@@ -101,78 +72,6 @@ function extractSection(content: string, heading: string, stops: string[], path:
   const body = lines.slice(start + 1, end).join('\n').trim();
   if (!body) throw new Error(`${path}: empty "${heading}" section`);
   return body;
-}
-
-function expandMarkers(s: string): string {
-  // Fresh regex per call: MARKER_RE is stateful (global flag) and reused by the
-  // exec loop in parseMarkers — sharing it here would reset that loop's lastIndex.
-  return s.replace(new RegExp(MARKER_RE.source, 'g'), (_m, _t, _id, surface) => surface);
-}
-
-function parseMarkers(
-  rawBody: string,
-  translationRu: string,
-  path: string,
-): { bodyRuby: string; markers: ParsedLesson['markers'] } {
-  const bodyParagraphs = rawBody.split('\n\n');
-  const transParagraphs = translationRu.split('\n\n');
-  const parityOk = bodyParagraphs.length === transParagraphs.length;
-
-  const markers: ParsedLesson['markers'] = [];
-  const seen = new Set<string>();
-  MARKER_RE.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = MARKER_RE.exec(rawBody)) !== null) {
-    const type = TYPE_MAP[m[1]!]!;
-    const id = m[2]!.trim();
-    const surface = m[3]!;
-    const key = `${type}:${id}`;
-    if (seen.has(key)) {
-      throw new Error(`${path}: marker for "${id}" appears more than once (mark only the first occurrence)`);
-    }
-    seen.add(key);
-
-    // предложение-контекст в сыром теле (границы: 。！？ или \n\n или края)
-    const start = m.index;
-    const end = m.index + m[0]!.length;
-    const before = rawBody.slice(0, start);
-    const after = rawBody.slice(end);
-    const seps = [...SENTENCE_ENDS.map((t) => before.lastIndexOf(t)), before.lastIndexOf('\n\n')];
-    const cut = Math.max(...seps);
-    const from = cut === -1 ? 0 : cut + (before.slice(cut).startsWith('\n\n') ? 2 : 1);
-    let toRel = after.length;
-    for (const t of SENTENCE_ENDS) {
-      const i = after.indexOf(t);
-      if (i !== -1) toRel = Math.min(toRel, i + 1);
-    }
-    const nn = after.indexOf('\n\n');
-    if (nn !== -1) toRel = Math.min(toRel, nn);
-    let sentenceRuby = expandMarkers(rawBody.slice(from, end + toRel)).trim();
-    sentenceRuby = sentenceRuby.replace(SPEAKER_PREFIX, '');
-    if (sentenceRuby.includes('{{') || sentenceRuby.includes('}}')) {
-      throw new Error(
-        `${path}: marker "${id}" — sentence context clips an adjacent marker; put markers in separate sentences`,
-      );
-    }
-
-    // абзац перевода: индекс абзаца тела, где стоит маркер
-    let acc = 0;
-    let pIdx = 0;
-    for (; pIdx < bodyParagraphs.length; pIdx++) {
-      const len = bodyParagraphs[pIdx]!.length + 2;
-      if (start < acc + len) break;
-      acc += len;
-    }
-    const sentenceRu = parityOk ? (transParagraphs[pIdx] ?? '').trim() : '';
-
-    markers.push({ type, id, surface, sentenceRuby, sentenceRu });
-  }
-
-  const bodyRuby = expandMarkers(rawBody);
-  if (bodyRuby.includes('{{') || bodyRuby.includes('}}')) {
-    throw new Error(`${path}: unrecognized marker syntax (stray "{{" or "}}" after expansion)`);
-  }
-  return { bodyRuby, markers };
 }
 
 function parseQuestions(content: string, path: string): ParsedLesson['questions'] {
@@ -244,18 +143,6 @@ export function validateLessons(lessons: ParsedLesson[]): string[] {
       }
     }
 
-    const seenIntro = new Set<string>();
-    for (const it of l.introduces) {
-      const k = `${it.type}:${it.id}`;
-      if (seenIntro.has(k)) errors.push(`${l.id}: duplicate introduce "${it.type}:${it.id}"`);
-      seenIntro.add(k);
-    }
-    const seenReview = new Set<string>();
-    for (const rid of l.reviews) {
-      if (seenReview.has(rid)) errors.push(`${l.id}: duplicate review id "${rid}"`);
-      seenReview.add(rid);
-    }
-
     let segs;
     try {
       segs = parseRuby(l.bodyRuby);
@@ -266,41 +153,6 @@ export function validateLessons(lessons: ParsedLesson[]): string[] {
     for (const s of segs) {
       if (s.ruby !== null && KANA.test(s.base)) {
         errors.push(`${l.id}: ruby base "${s.base}" contains kana in body`);
-      }
-    }
-  }
-  return errors;
-}
-
-export function validateLessonRefs(
-  lessons: ParsedLesson[],
-  sets: { grammar: Set<string>; kanji: Set<string>; vocab: Set<string> },
-): string[] {
-  const setFor = (t: ItemType): Set<string> =>
-    t === 'grammar' ? sets.grammar : t === 'kanji' ? sets.kanji : sets.vocab;
-  const errors: string[] = [];
-  for (const l of lessons) {
-    const introduced = new Set(l.introduces.map((it) => `${it.type}:${it.id}`));
-    for (const it of l.introduces) {
-      if (!setFor(it.type).has(it.id)) {
-        errors.push(`${l.id}: introduces ${it.type} id "${it.id}" does not exist`);
-      }
-    }
-    for (const rid of l.reviews) {
-      const hits = (['grammar', 'kanji', 'vocab'] as ItemType[]).filter((t) => setFor(t).has(rid));
-      if (hits.length !== 1) {
-        errors.push(`${l.id}: review id "${rid}" resolves to ${hits.length} item types (need exactly 1)`);
-      } else if (introduced.has(`${hits[0]}:${rid}`)) {
-        errors.push(`${l.id}: "${rid}" is both introduced and reviewed`);
-      }
-    }
-    for (const m of l.markers) {
-      if (!setFor(m.type).has(m.id)) {
-        errors.push(`${l.id}: marker ${m.type} id "${m.id}" does not exist`);
-      }
-      const known = introduced.has(`${m.type}:${m.id}`) || l.reviews.includes(m.id);
-      if (!known) {
-        errors.push(`${l.id}: marker "${m.id}" is neither introduced nor reviewed by this lesson`);
       }
     }
   }

@@ -7,7 +7,7 @@ import { loadLevels } from './lists';
 import { loadAllKanji, validateKanji } from './kanji';
 import { extractGrammarKanji } from './grammar-kanji';
 import { loadAllVocab, validateVocab } from './vocab';
-import { loadAllLessons, validateLessons, validateLessonRefs } from './lessons';
+import { loadAllLessons, validateLessons } from './lessons';
 import type { ParsedLesson } from './lessons';
 
 export interface BuildOpts {
@@ -124,14 +124,7 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
   const lessons = loadAllLessons(opts.lessonsDir).sort((a, b) => a.id.localeCompare(b.id));
   const lessonErrors = validateLessons(lessons);
   if (lessonErrors.length) throw new Error(`lessons validation failed:\n${lessonErrors.join('\n')}`);
-  const refSets = {
-    grammar: grammarIds,
-    kanji: new Set(kanji.map((k) => k.id)),
-    vocab: new Set(vocab.map((v) => v.id)),
-  };
-  const refErrors = validateLessonRefs(lessons, refSets);
-  if (refErrors.length) throw new Error(`lesson refs validation failed:\n${refErrors.join('\n')}`);
-  insertLessons(db, lessons, refSets);
+  insertLessons(db, lessons);
 
   db.run("INSERT INTO meta (key, value) VALUES ('content_version', ?)", [
     opts.contentVersion ?? '0.1.0',
@@ -143,48 +136,19 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
   return bytes;
 }
 
-export function insertLessons(
-  db: Database,
-  lessons: ParsedLesson[],
-  sets: { grammar: Set<string>; kanji: Set<string>; vocab: Set<string> },
-): void {
-  const setFor = (t: 'grammar' | 'kanji' | 'vocab'): Set<string> =>
-    t === 'grammar' ? sets.grammar : t === 'kanji' ? sets.kanji : sets.vocab;
-
+export function insertLessons(db: Database, lessons: ParsedLesson[]): void {
   const insL = db.prepare(
     'INSERT INTO lessons (id, stage, kind, title, body_ruby, translation_ru) VALUES (?,?,?,?,?,?)',
   );
   const insLQ = db.prepare(
     'INSERT INTO lesson_questions (lesson_id, ord, prompt, choices_json, answer_index) VALUES (?,?,?,?,?)',
   );
-  const insLI = db.prepare(
-    'INSERT INTO lesson_introduces (lesson_id, item_type, item_id, role, ord) VALUES (?,?,?,?,?)',
-  );
-  const insLM = db.prepare(
-    'INSERT INTO lesson_markers (lesson_id, item_type, item_id, ord, surface, sentence_ruby, sentence_ru) VALUES (?,?,?,?,?,?,?)',
-  );
   for (const l of lessons) {
     insL.run([l.id, l.stage, l.kind, l.title, l.bodyRuby, l.translationRu]);
     l.questions.forEach((q, i) =>
       insLQ.run([l.id, i, q.prompt, JSON.stringify(q.choices), q.answerIndex]),
     );
-    let ord = 0;
-    for (const it of l.introduces) insLI.run([l.id, it.type, it.id, 'introduce', ord++]);
-    for (const rid of l.reviews) {
-      const type = (['grammar', 'kanji', 'vocab'] as const).find((t) => setFor(t).has(rid));
-      if (!type) {
-        throw new Error(
-          `insertLessons: review id "${rid}" in lesson "${l.id}" resolves to no item type (validateLessonRefs should have caught this)`,
-        );
-      }
-      insLI.run([l.id, type, rid, 'review', ord++]);
-    }
-    l.markers.forEach((mk, i) =>
-      insLM.run([l.id, mk.type, mk.id, i, mk.surface, mk.sentenceRuby, mk.sentenceRu]),
-    );
   }
   insL.free();
   insLQ.free();
-  insLI.free();
-  insLM.free();
 }

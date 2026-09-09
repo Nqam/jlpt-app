@@ -259,11 +259,9 @@ describe('ContentDb', () => {
     }
     expect(ls[0]!.id).toBe('n5-hanami');
     expect(ls[0]!.stage).toBe(2);
-    // 15 мигрированных текстов — свободное чтение
-    expect(ls.every((l) => l.isFreeReading && l.introducesCount === 0)).toBe(true);
   });
 
-  it('gets a full lesson with body, translation, questions and empty introduces/markers', () => {
+  it('gets a full lesson with body, translation and questions', () => {
     const l = db.getLesson('n5-hanami');
     expect(l).not.toBeNull();
     expect(l!.title).toBe('お花見');
@@ -274,8 +272,6 @@ describe('ContentDb', () => {
     expect(l!.questions).toHaveLength(4);
     expect(l!.questions[0]!.choices.length).toBeGreaterThanOrEqual(3);
     expect(typeof l!.questions[0]!.answerIndex).toBe('number');
-    expect(l!.introduces).toEqual([]);
-    expect(l!.markers).toEqual([]);
   });
 
   it('returns null for an unknown lesson id', () => {

@@ -35,16 +35,12 @@ const sample: LessonFull = {
   stage: 3,
   kind: 'text',
   title: 'サンプル',
-  introducesCount: 0,
-  isFreeReading: true,
   bodyRuby: 'これは 文[ぶん]です。\n\n二[ふた]つ目[め]の 段落[だんらく]です。',
   translationRu: 'Это предложение.\n\nВторой абзац.',
   questions: [
     { prompt: 'Вопрос 1?', choices: ['A', 'B', 'C'], answerIndex: 1 },
     { prompt: 'Вопрос 2?', choices: ['D', 'E', 'F'], answerIndex: 0 },
   ],
-  introduces: [],
-  markers: [],
 };
 const fakeDb = {
   getLesson: (id: string) => (id === sample.id ? sample : null),

@@ -67,7 +67,7 @@ CREATE TABLE lessons (
   stage          INTEGER NOT NULL,
   kind           TEXT    NOT NULL,           -- 'text' | 'dialogue'
   title          TEXT    NOT NULL,
-  body_ruby      TEXT    NOT NULL,           -- inline-маркеры развёрнуты
+  body_ruby      TEXT    NOT NULL,
   translation_ru TEXT    NOT NULL
 );
 CREATE INDEX ix_lessons_stage ON lessons(stage);
@@ -79,26 +79,6 @@ CREATE TABLE lesson_questions (
   choices_json TEXT    NOT NULL,
   answer_index INTEGER NOT NULL,
   PRIMARY KEY (lesson_id, ord)
-);
-
-CREATE TABLE lesson_introduces (
-  lesson_id TEXT    NOT NULL,
-  item_type TEXT    NOT NULL,                -- 'grammar' | 'kanji' | 'vocab'
-  item_id   TEXT    NOT NULL,
-  role      TEXT    NOT NULL,                -- 'introduce' | 'review'
-  ord       INTEGER NOT NULL,
-  PRIMARY KEY (lesson_id, item_type, item_id)
-);
-
-CREATE TABLE lesson_markers (
-  lesson_id     TEXT    NOT NULL,
-  item_type     TEXT    NOT NULL,
-  item_id       TEXT    NOT NULL,
-  ord           INTEGER NOT NULL,
-  surface       TEXT    NOT NULL,
-  sentence_ruby TEXT    NOT NULL,
-  sentence_ru   TEXT    NOT NULL,            -- может быть ''
-  PRIMARY KEY (lesson_id, item_type, item_id)
 );
 
 CREATE TABLE meta (

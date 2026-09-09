@@ -20,8 +20,6 @@ describe('content.db schema', () => {
       'grammar_points',
       'grammar_relations',
       'kanji_points',
-      'lesson_introduces',
-      'lesson_markers',
       'lesson_questions',
       'lessons',
       'levels',
@@ -211,12 +209,6 @@ describe('buildContentDb', () => {
     )[0]!.values[0]!;
     expect(q1[0]).toBe(0);
     expect((JSON.parse(String(q1[1])) as string[]).length).toBe(4);
-
-    // 15 мигрированных текстов — свободное чтение: ни introduces, ни маркеров
-    const introduces = db.exec('SELECT count(*) FROM lesson_introduces')[0]!.values[0]![0];
-    expect(introduces).toBe(0);
-    const markers = db.exec('SELECT count(*) FROM lesson_markers')[0]!.values[0]![0];
-    expect(markers).toBe(0);
 
     const orphans = db.exec(`
       SELECT count(*) FROM lesson_questions q

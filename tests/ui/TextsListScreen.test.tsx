@@ -24,9 +24,9 @@ const levels: Level[] = [
 ];
 // listLessons already returns rows ORDER BY stage, id.
 const lessons: LessonMeta[] = [
-  { id: 'n5-a', stage: 4, kind: 'text', title: 'キツネとツル', introducesCount: 0, isFreeReading: true },
-  { id: 'n5-b', stage: 10, kind: 'text', title: '二匹のかえる', introducesCount: 0, isFreeReading: true },
-  { id: 'n4-a', stage: 44, kind: 'text', title: '温泉', introducesCount: 0, isFreeReading: true },
+  { id: 'n5-a', stage: 4, kind: 'text', title: 'キツネとツル' },
+  { id: 'n5-b', stage: 10, kind: 'text', title: '二匹のかえる' },
+  { id: 'n4-a', stage: 44, kind: 'text', title: '温泉' },
 ];
 const fakeDb = {
   listLessons: () => lessons,

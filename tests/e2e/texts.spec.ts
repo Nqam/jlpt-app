@@ -35,10 +35,9 @@ test('the Тексты section: read a text, its ✓ shows on the list, and /les
     win.locator('.text-list-item').first().locator('[aria-label="прочитано"]'),
   ).toBeVisible();
 
-  // NOTE: cross-restart persistence of the ✓ is deferred — the current tree's
-  // `migrateTextsRead` (course.ts, out of this task's scope) drains
-  // `texts_read_ids` into `course_completed_ids` on the next launch. Task 8's
-  // `migrateCourseKeys` reverses that; Task 10's course walk re-asserts persistence.
+  // NOTE: cross-restart persistence of the ✓ is asserted by Task 10's course
+  // walk; the old `texts_read_ids` → `course_completed_ids` drain is gone
+  // (Task 9), and Task 8's `migrateCourseKeys` reverses any leftovers.
   await app.evaluate(({ BrowserWindow }) => { BrowserWindow.getAllWindows()[0]?.close(); });
   await app.close();
 

@@ -2,7 +2,7 @@ import type { Database } from 'sql.js';
 import type { PlatformAdapter } from '@/platform/adapter';
 import type {
   GrammarPoint, KanjiPoint, Level, LevelCode, VocabPoint,
-  LessonMeta, LessonFull, LessonIntroduce, LessonMarker,
+  LessonMeta, LessonFull,
 } from '@/core/types';
 import { loadSqlJs } from './sqljs';
 
@@ -44,7 +44,6 @@ interface LessonMetaRow {
   stage: number;
   kind: string;
   title: string;
-  introduces_count: number;
 }
 
 interface LessonRow {
@@ -60,20 +59,6 @@ interface LessonQuestionRow {
   prompt: string;
   choices_json: string;
   answer_index: number;
-}
-
-interface LessonIntroduceRow {
-  item_type: string;
-  item_id: string;
-  role: string;
-}
-
-interface LessonMarkerRow {
-  item_type: string;
-  item_id: string;
-  surface: string;
-  sentence_ruby: string;
-  sentence_ru: string;
 }
 
 /** Колонки для списков/поиска — без тяжёлого body_markdown (полный скан на каждое нажатие). */
@@ -265,18 +250,12 @@ export class ContentDb {
 
   listLessons(): LessonMeta[] {
     return this.all<LessonMetaRow>(
-      `SELECT l.id, l.stage, l.kind, l.title,
-              (SELECT count(*) FROM lesson_introduces li
-                 WHERE li.lesson_id = l.id AND li.role = 'introduce') AS introduces_count
-       FROM lessons l
-       ORDER BY l.stage, l.id`,
+      'SELECT id, stage, kind, title FROM lessons ORDER BY stage, id',
     ).map((r) => ({
       id: r.id,
       stage: r.stage,
       kind: r.kind as LessonMeta['kind'],
       title: r.title,
-      introducesCount: r.introduces_count,
-      isFreeReading: r.introduces_count === 0,
     }));
   }
 
@@ -297,39 +276,14 @@ export class ContentDb {
       answerIndex: q.answer_index,
     }));
 
-    const introduces: LessonIntroduce[] = this.all<LessonIntroduceRow>(
-      'SELECT item_type, item_id, role FROM lesson_introduces WHERE lesson_id = ? ORDER BY ord',
-      [id],
-    ).map((r) => ({
-      type: r.item_type as LessonIntroduce['type'],
-      id: r.item_id,
-      role: r.role as LessonIntroduce['role'],
-    }));
-
-    const markers: LessonMarker[] = this.all<LessonMarkerRow>(
-      'SELECT item_type, item_id, surface, sentence_ruby, sentence_ru FROM lesson_markers WHERE lesson_id = ? ORDER BY ord',
-      [id],
-    ).map((r) => ({
-      type: r.item_type as LessonMarker['type'],
-      id: r.item_id,
-      surface: r.surface,
-      sentenceRuby: r.sentence_ruby,
-      sentenceRu: r.sentence_ru,
-    }));
-
-    const introducesCount = introduces.filter((i) => i.role === 'introduce').length;
     return {
       id: row.id,
       stage: row.stage,
       kind: row.kind as LessonFull['kind'],
       title: row.title,
-      introducesCount,
-      isFreeReading: introducesCount === 0,
       bodyRuby: row.body_ruby,
       translationRu: row.translation_ru,
       questions,
-      introduces,
-      markers,
     };
   }
 }
