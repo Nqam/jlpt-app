@@ -133,6 +133,15 @@ export class ContentDb {
     ).map((r) => this.rowToPoint(r));
   }
 
+  /** Every grammar point, in course order: level ord, then layer, then title. */
+  listCourseGrammar(): GrammarPoint[] {
+    return this.all<GrammarListRow>(
+      `SELECT g.id, g.level, g.title, g.layer, g.tags_json
+         FROM grammar_points g JOIN levels l ON l.code = g.level
+        ORDER BY l.ord, g.layer, g.title`,
+    ).map((r) => this.rowToPoint(r));
+  }
+
   grammarCountByLevel(level: LevelCode): number {
     const r = this.all<{ n: number }>(
       'SELECT count(*) AS n FROM grammar_points WHERE level = ?',

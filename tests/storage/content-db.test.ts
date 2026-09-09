@@ -79,6 +79,25 @@ describe('ContentDb', () => {
     expect(p!.examples.length).toBeGreaterThanOrEqual(3);
   });
 
+  it('listCourseGrammar returns every grammar point in (level, layer, title) order', () => {
+    const all = db.listCourseGrammar();
+    // every point is present
+    const n5 = db.listGrammar('N5').length;
+    const n4 = db.listGrammar('N4').length;
+    expect(all.length).toBe(n5 + n4);
+    // N5 fully precedes N4 (levels.ord)
+    const lastN5 = all.map((p) => p.level).lastIndexOf('N5');
+    const firstN4 = all.map((p) => p.level).indexOf('N4');
+    expect(lastN5).toBeLessThan(firstN4);
+    // within a level: non-decreasing layer, then title (SQLite BINARY collation,
+    // matching `ORDER BY g.layer, g.title` — code-point order, as `listGrammar` uses)
+    const n5only = all.filter((p) => p.level === 'N5');
+    for (let i = 1; i < n5only.length; i++) {
+      const a = n5only[i - 1]!, b = n5only[i]!;
+      expect(a.layer < b.layer || (a.layer === b.layer && a.title <= b.title)).toBe(true);
+    }
+  });
+
   it('searches grammar by title, folding Cyrillic case in both directions', () => {
     // SQLite lower() is ASCII-only, so any query whose case differs from the
     // stored title must still match — the filtering has to case-fold in JS.
