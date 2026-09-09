@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useContentDb } from '../useContentDb';
 import { useUserDb } from '../useUserDb';
@@ -34,15 +34,23 @@ export function CourseScreen() {
       )}
 
       <ul className="course-list">
-        {points.map((p) => {
+        {points.map((p, i) => {
           const state = courseLessonState(p, currentId, completedSet, hasCard);
+          const newLevel = i === 0 || points[i - 1]!.level !== p.level;
           return (
-            <li key={p.id} className="course-item" data-lesson={p.id} data-state={state}>
-              <Link to={`/course/${p.id}`} className="course-item-link">
-                <span className="course-item-title">{p.title}</span>
-                <span className="course-item-state" data-state={state}>{STATE_LABEL[state]}</span>
-              </Link>
-            </li>
+            <Fragment key={p.id}>
+              {newLevel && (
+                <li className="course-level-header" data-level={p.level} aria-hidden>
+                  {p.level}
+                </li>
+              )}
+              <li className="course-item" data-lesson={p.id} data-state={state} data-level={p.level}>
+                <Link to={`/course/${p.id}`} className="course-item-link">
+                  <span className="course-item-title">{p.title}</span>
+                  <span className="course-item-state" data-state={state}>{STATE_LABEL[state]}</span>
+                </Link>
+              </li>
+            </Fragment>
           );
         })}
       </ul>

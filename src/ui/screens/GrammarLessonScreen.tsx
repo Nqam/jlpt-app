@@ -8,6 +8,7 @@ import {
 } from '@/core/course';
 import { GrammarPointBody } from '../components/GrammarPointBody';
 import { GrammarReinforceStep } from '../components/GrammarReinforceStep';
+import { LevelBadge } from '../components/LevelBadge';
 import { review, newCard } from '@/core/srs';
 
 /** 0 Изучение · 1 Закрепление · 2 Итог */
@@ -73,7 +74,7 @@ export function GrammarLessonScreen() {
   return (
     <section className="screen lesson-screen grammar-lesson">
       {step !== LAST_STEP && <Link to="/course" className="back-link">← К курсу</Link>}
-      <h1>{point.title}</h1>
+      <h1>{point.title} <LevelBadge level={point.level} /></h1>
 
       {step === 0 && (
         <div className="lesson-step">

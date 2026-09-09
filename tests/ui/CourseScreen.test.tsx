@@ -24,8 +24,8 @@ import { CourseScreen } from '@/ui/screens/CourseScreen';
 import type { GrammarPoint, Level } from '@/core/types';
 
 const levels: Level[] = [{ code: 'N5', ord: 1, status: 'available', titleRu: 'N5' }];
-const gp = (id: string, title: string): GrammarPoint =>
-  ({ id, level: 'N5', title, layer: 1, tags: [], related: [], bodyMarkdown: '', examples: [], kanjiIds: [] });
+const gp = (id: string, title: string, level = 'N5'): GrammarPoint =>
+  ({ id, level, title, layer: 1, tags: [], related: [], bodyMarkdown: '', examples: [], kanjiIds: [] });
 const points: GrammarPoint[] = [gp('g1', 'A'), gp('g2', 'B'), gp('g3', 'C')];
 
 const fakeDb = {
@@ -91,5 +91,22 @@ describe('CourseScreen', () => {
     renderScreen();
     expect(screen.queryByRole('link', { name: /Продолжить|Начать курс/ })).toBeNull();
     expect(screen.getByText(/курс пройден/i)).toBeInTheDocument();
+  });
+
+  it('groups the list by JLPT level with a header before each level run', () => {
+    const orig = points.slice();
+    points.length = 0;
+    points.push(gp('g1', 'A', 'N5'), gp('g2', 'B', 'N5'), gp('n4a', 'D', 'N4'), gp('n4b', 'E', 'N4'));
+    try {
+      const { container } = renderScreen();
+      const headers = [...container.querySelectorAll('.course-level-header')];
+      expect(headers.map((h) => h.textContent)).toEqual(['N5', 'N4']);
+      // header sits immediately before the first item of its level
+      const n4header = headers[1]!;
+      expect(n4header.nextElementSibling).toHaveAttribute('data-lesson', 'n4a');
+    } finally {
+      points.length = 0;
+      points.push(...orig);
+    }
   });
 });
