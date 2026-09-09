@@ -10,6 +10,7 @@ import { TextsListScreen } from './screens/TextsListScreen';
 import { TextDetailScreen } from './screens/TextDetailScreen';
 import { TodayScreen } from './screens/TodayScreen';
 import { ReviewScreen } from './screens/ReviewScreen';
+import { MiniTestScreen } from './screens/MiniTestScreen';
 import { PlacementScreen } from './screens/PlacementScreen';
 import { Navigate, useParams } from 'react-router-dom';
 import { ProgressScreen } from './screens/ProgressScreen';
@@ -40,6 +41,7 @@ function LessonToTextRedirect() {
 export const routes: RouteObject[] = [
   { path: '/', element: <TodayScreen /> },
   { path: '/review', element: <ReviewScreen /> },
+  { path: '/minitest', element: <MiniTestScreen /> },
   { path: '/placement', element: <PlacementRedirect /> },
   { path: '/placement/:type', element: <PlacementRoute /> },
   { path: '/grammar', element: <GrammarListScreen /> },

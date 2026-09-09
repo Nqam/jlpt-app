@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
+
 import { MemoryRouter as BaseMemoryRouter } from 'react-router-dom';
 import type { ComponentProps } from 'react';
 import { ContentDbContext } from '@/ui/ContentDbProvider';
@@ -45,30 +46,21 @@ describe('TextsListScreen', () => {
     readIds.value = [];
   });
 
-  it('renders one flat list of every lesson, in listLessons order', () => {
-    const { getAllByRole } = renderScreen();
+  it('splits texts into JLPT-level tabs (stage < 40 = N5), N5 active first', () => {
+    const { container, getAllByRole } = renderScreen();
+    const tabs = [...container.querySelectorAll('.level-tabs [role="tab"]')];
+    expect(tabs.map((t) => t.textContent)).toEqual(['N5', 'N4']);
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     const links = getAllByRole('link').filter((a) => a.getAttribute('href')?.includes('/texts/'));
-    expect(links).toHaveLength(3);
-    expect(links.map((a) => a.textContent)).toEqual([
-      'キツネとツル',
-      '二匹のかえる',
-      '温泉',
-    ]);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/texts/n5-a', '/texts/n5-b']);
+    expect(links.map((a) => a.textContent)).toEqual(['キツネとツル', '二匹のかえる']);
   });
 
-  it('links each row to /texts/:id', () => {
-    const { getAllByRole } = renderScreen();
+  it('switching to the N4 tab shows only the N4 texts', async () => {
+    const { container, getAllByRole } = renderScreen();
+    fireEvent.click(container.querySelectorAll('.level-tabs [role="tab"]')[1]!);
     const links = getAllByRole('link').filter((a) => a.getAttribute('href')?.includes('/texts/'));
-    expect(links.map((a) => a.getAttribute('href'))).toEqual([
-      '/texts/n5-a',
-      '/texts/n5-b',
-      '/texts/n4-a',
-    ]);
-  });
-
-  it('has no level tablist', () => {
-    const { container } = renderScreen();
-    expect(container.querySelector('[role="tablist"]')).toBeNull();
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/texts/n4-a']);
   });
 
   it('shows no read badge when nothing is read', () => {

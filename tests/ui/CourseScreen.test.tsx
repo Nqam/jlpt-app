@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+
 import { MemoryRouter as BaseMemoryRouter } from 'react-router-dom';
 import type { ComponentProps } from 'react';
 import { ContentDbContext } from '@/ui/ContentDbProvider';
@@ -93,17 +94,25 @@ describe('CourseScreen', () => {
     expect(screen.getByText(/курс пройден/i)).toBeInTheDocument();
   });
 
-  it('groups the list by JLPT level with a header before each level run', () => {
+  it('splits the list into JLPT-level tabs and shows only the active level', async () => {
     const orig = points.slice();
     points.length = 0;
     points.push(gp('g1', 'A', 'N5'), gp('g2', 'B', 'N5'), gp('n4a', 'D', 'N4'), gp('n4b', 'E', 'N4'));
     try {
       const { container } = renderScreen();
-      const headers = [...container.querySelectorAll('.course-level-header')];
-      expect(headers.map((h) => h.textContent)).toEqual(['N5', 'N4']);
-      // header sits immediately before the first item of its level
-      const n4header = headers[1]!;
-      expect(n4header.nextElementSibling).toHaveAttribute('data-lesson', 'n4a');
+      const tabs = [...container.querySelectorAll('.level-tabs [role="tab"]')];
+      expect(tabs.map((t) => t.textContent)).toEqual(['N5', 'N4']);
+      // default tab = level of the current point (g1 → N5)
+      expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+      expect(container.querySelectorAll('.course-item')).toHaveLength(2);
+      expect(screen.queryByText('D')).toBeNull();
+
+      fireEvent.click(tabs[1]!);
+      expect(container.querySelectorAll('.course-item')).toHaveLength(2);
+      expect(screen.getByText('D')).toBeInTheDocument();
+      expect(screen.queryByText('A')).toBeNull();
+      // the CTA stays visible across tabs and still targets the current point
+      expect(screen.getByRole('link', { name: /Начать курс/ })).toHaveAttribute('href', '/course/g1');
     } finally {
       points.length = 0;
       points.push(...orig);

@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useContentDb } from '../useContentDb';
 import { useUserDb } from '../useUserDb';
@@ -21,6 +21,17 @@ export function CourseScreen() {
   const currentId = currentCourseLessonId(points, completedSet, hasCard);
   const current = currentId ? points.find((p) => p.id === currentId) ?? null : null;
 
+  // Levels the course actually has content for, in course order.
+  const levels = useMemo(() => {
+    const seen = new Set<string>();
+    return points.map((p) => p.level).filter((l) => (seen.has(l) ? false : seen.add(l)));
+  }, [points]);
+  const [activeLevel, setActiveLevel] = useState(() => current?.level ?? levels[0] ?? '');
+  const rows = useMemo(
+    () => points.filter((p) => p.level === activeLevel),
+    [points, activeLevel],
+  );
+
   return (
     <section className="screen course">
       <h1>Курс</h1>
@@ -33,24 +44,31 @@ export function CourseScreen() {
         <p className="muted">Курс пройден — все пункты грамматики изучены.</p>
       )}
 
+      <div role="tablist" className="level-tabs">
+        {levels.map((code) => (
+          <button
+            key={code}
+            role="tab"
+            type="button"
+            aria-selected={code === activeLevel}
+            className="level-tab"
+            onClick={() => setActiveLevel(code)}
+          >
+            {code}
+          </button>
+        ))}
+      </div>
+
       <ul className="course-list">
-        {points.map((p, i) => {
+        {rows.map((p) => {
           const state = courseLessonState(p, currentId, completedSet, hasCard);
-          const newLevel = i === 0 || points[i - 1]!.level !== p.level;
           return (
-            <Fragment key={p.id}>
-              {newLevel && (
-                <li className="course-level-header" data-level={p.level} aria-hidden>
-                  {p.level}
-                </li>
-              )}
-              <li className="course-item" data-lesson={p.id} data-state={state} data-level={p.level}>
-                <Link to={`/course/${p.id}`} className="course-item-link">
-                  <span className="course-item-title">{p.title}</span>
-                  <span className="course-item-state" data-state={state}>{STATE_LABEL[state]}</span>
-                </Link>
-              </li>
-            </Fragment>
+            <li key={p.id} className="course-item" data-lesson={p.id} data-state={state} data-level={p.level}>
+              <Link to={`/course/${p.id}`} className="course-item-link">
+                <span className="course-item-title">{p.title}</span>
+                <span className="course-item-state" data-state={state}>{STATE_LABEL[state]}</span>
+              </Link>
+            </li>
           );
         })}
       </ul>

@@ -71,25 +71,62 @@ export function buildDailySession(user: UserDb, content: ContentDb, now: Date): 
     });
   }
 
-  // Mini-test stays grammar-only (out of scope for this plan).
+  // Mini-test tail: grammar-only, same seed all day.
+  steps.push(
+    ...buildMiniTest(user, content, `mt:${dayKey}`, (id, i) => `${id}:mt:${i}`),
+  );
+
+  return steps;
+}
+
+/**
+ * The grammar mini-test as a standalone list of `minitest` steps. Fires only
+ * when the learner has >= 5 grammar cards at status learned/mastered; 5..8
+ * questions sampled from those points, one per point, kind rotating
+ * cloze/choice/assemble. Never touches FSRS or user.db — it is a self-check.
+ *
+ * `shuffleSeed` picks which learned points are sampled; `qSeed(sourceId, index)`
+ * seeds each question. `buildDailySession` passes a per-day seed so the tail is
+ * stable; the standalone `/minitest` screen passes a fresh nonce each attempt so
+ * a retake varies.
+ */
+export function buildMiniTest(
+  user: UserDb,
+  content: ContentDb,
+  shuffleSeed: string,
+  qSeed: (sourceId: string, index: number) => string,
+): Extract<SessionStep, { phase: 'minitest' }>[] {
   const learned = user.allCards('grammar').filter((c) => {
     const s = statusOf(c);
     return s === 'learned' || s === 'mastered';
   });
+  if (learned.length < 5) return [];
 
-  if (learned.length >= 5) {
-    const count = Math.min(8, Math.max(5, Math.floor(learned.length / 2)));
-    const sources = seededShuffle(
-      learned.map((c) => c.item_id).filter((id) => getGrammarPoint(id) !== null),
-      `mt:${dayKey}`,
-    ).slice(0, count);
-    sources.forEach((srcId, index) => {
-      const point = getGrammarPoint(srcId)!;
-      const kind = ROTATION[index % 3]!;
-      const question = generateOfKind(kind, point, grammarLevelPoints(point.level), `${srcId}:mt:${index}`);
-      steps.push({ phase: 'minitest', question, sourceItemId: srcId, index });
-    });
-  }
+  const pointCache = new Map<string, GrammarPointFull | null>();
+  const getPoint = (id: string): GrammarPointFull | null => {
+    if (!pointCache.has(id)) pointCache.set(id, content.getGrammar(id));
+    return pointCache.get(id)!;
+  };
+  const levelCache = new Map<string, GrammarPointFull[]>();
+  const levelPoints = (level: string): GrammarPointFull[] => {
+    if (!levelCache.has(level)) levelCache.set(level, levelPointsFor(content, level));
+    return levelCache.get(level)!;
+  };
 
-  return steps;
+  const count = Math.min(8, Math.max(5, Math.floor(learned.length / 2)));
+  const sources = seededShuffle(
+    learned.map((c) => c.item_id).filter((id) => getPoint(id) !== null),
+    shuffleSeed,
+  ).slice(0, count);
+
+  return sources.map((srcId, index) => {
+    const point = getPoint(srcId)!;
+    const kind = ROTATION[index % 3]!;
+    return {
+      phase: 'minitest' as const,
+      question: generateOfKind(kind, point, levelPoints(point.level), qSeed(srcId, index)),
+      sourceItemId: srcId,
+      index,
+    };
+  });
 }

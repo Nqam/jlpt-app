@@ -34,10 +34,13 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); }
-.app-shell { display: flex; min-height: 100vh; }
+/* Shell owns the viewport; only the content column scrolls, so the sidebar
+   and header stay put. */
+.app-shell { display: flex; height: 100vh; overflow: hidden; }
 .nav[data-variant='sidebar'] {
-  display: flex; flex-direction: column; gap: 4px; width: 220px;
+  display: flex; flex-direction: column; gap: 4px; width: 220px; flex: none;
   padding: 16px 8px; border-right: 1px solid var(--border); background: var(--surface);
+  height: 100vh; overflow-y: auto;
 }
 .nav[data-variant='bottom'] {
   position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-around;
@@ -52,7 +55,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .nav[data-variant='sidebar'] .nav-icon { flex: none; width: 1.5em; text-align: center; }
 .nav[data-variant='bottom'] .nav-link { flex-direction: column; gap: 2px; font-size: 11px; padding: 4px 8px; }
 .nav[data-variant='bottom'] .nav-link--settings { display: none; }
-.app-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.app-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow-y: auto; }
 /* Content follows the window: fill the available column up to a readable
    ceiling, with side padding that scales with viewport width. */
 .screen, .today, .review, .progress, .placement, .settings, .text-detail {
@@ -63,7 +66,8 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .grammar-list-title, .text-list-title, .vocab-headword { overflow-wrap: anywhere; }
 .grammar-list-title, .text-list-title { min-width: 0; }
 .app-header { display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 20px; border-bottom: 1px solid var(--border); }
+  padding: 12px 20px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 5; background: var(--bg); }
 .app-brand { font-family: var(--font-ja); font-weight: 700; letter-spacing: 0.12em; color: var(--accent); }
 .screen { padding: 20px clamp(16px, 3vw, 44px); max-width: min(72rem, 100%); }
 .muted, .loading, .fatal { color: var(--muted); }
@@ -305,11 +309,6 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 /* --- Plan 5-2: course + lesson player --- */
 .course-continue { display: block; margin: 0.5rem 0 1.25rem; text-align: center; }
 .course-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-.course-level-header {
-  margin: 1rem 0 0.25rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em;
-  color: var(--muted); text-transform: uppercase;
-}
-.course-level-header:first-child { margin-top: 0; }
 .course-item-link {
   display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
   padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 0.5rem;

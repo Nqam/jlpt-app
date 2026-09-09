@@ -6,6 +6,8 @@ import { useUserDb } from '@/ui/useUserDb';
 import { statusOf } from '@/core/srs';
 import { StatusDot } from '@/ui/components/StatusDot';
 
+const MINITEST_MIN_LEARNED = 5;
+
 export function GrammarListScreen() {
   const db = useContentDb();
   const user = useUserDb();
@@ -14,6 +16,12 @@ export function GrammarListScreen() {
     for (const c of user.allCards('grammar')) m.set(c.item_id, statusOf(c));
     return m;
   }, [user]);
+  const miniTestReady = useMemo(
+    () =>
+      [...cardStatus.values()].filter((s) => s === 'learned' || s === 'mastered').length >=
+      MINITEST_MIN_LEARNED,
+    [cardStatus],
+  );
   const levels = useEffectiveLevels();
   const [activeLevel, setActiveLevel] = useState(levels[0]?.code ?? '');
   const [query, setQuery] = useState('');
@@ -50,6 +58,11 @@ export function GrammarListScreen() {
       {activeLevelObj?.status === 'available' && (
         <Link className="btn-ghost placement-entry" to="/placement/grammar">
           Пройти тест по разделу
+        </Link>
+      )}
+      {miniTestReady && (
+        <Link className="btn-ghost placement-entry" to="/minitest">
+          Мини-тест
         </Link>
       )}
       <input

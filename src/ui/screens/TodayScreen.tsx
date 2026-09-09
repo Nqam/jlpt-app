@@ -101,6 +101,9 @@ export function TodayScreen() {
       ) : (
         <Link className="btn-ghost today-course" to="/course">Курс</Link>
       )}
+      {s.miniTestEligible && (
+        <Link className="btn-ghost today-course" to="/minitest">Мини-тест</Link>
+      )}
     </section>
   );
 }
