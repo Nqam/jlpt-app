@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter as BaseMemoryRouter } from 'react-router-dom';
 import type { ComponentProps } from 'react';
 import { ContentDbContext } from '@/ui/ContentDbProvider';
@@ -11,24 +11,26 @@ const MemoryRouter = (p: ComponentProps<typeof BaseMemoryRouter>) => (
 );
 
 const completed: { value: string[] } = { value: [] };
+const carded: { value: Set<string> } = { value: new Set() };
 vi.mock('@/ui/useUserDb', () => ({
   useUserDb: () => ({
     getSetting: (key: string, fb: unknown) =>
       key === 'course_completed_ids' ? completed.value : fb,
+    getCard: (t: string, i: string) => (carded.value.has(`${t}:${i}`) ? {} : null),
   }),
 }));
 
 import { CourseScreen } from '@/ui/screens/CourseScreen';
-import type { LessonMeta, Level } from '@/core/types';
+import type { GrammarPoint, Level } from '@/core/types';
 
 const levels: Level[] = [{ code: 'N5', ord: 1, status: 'available', titleRu: 'N5' }];
-const lm = (id: string, stage: number, mandatory: boolean): LessonMeta => ({
-  id, stage, kind: 'text', title: id.toUpperCase(),
-  introducesCount: mandatory ? 2 : 0, isFreeReading: !mandatory,
-});
-const lessons: LessonMeta[] = [lm('m1', 2, true), lm('r1', 4, false), lm('m2', 8, true)];
+const gp = (id: string, title: string): GrammarPoint =>
+  ({ id, level: 'N5', title, layer: 1, tags: [], related: [], bodyMarkdown: '', examples: [], kanjiIds: [] });
+const points: GrammarPoint[] = [gp('g1', 'A'), gp('g2', 'B'), gp('g3', 'C')];
 
-const fakeDb = { listLessons: () => lessons } as unknown as import('@/storage/content-db').ContentDb;
+const fakeDb = {
+  listCourseGrammar: () => points,
+} as unknown as import('@/storage/content-db').ContentDb;
 
 function renderScreen() {
   return render(
@@ -39,51 +41,55 @@ function renderScreen() {
 }
 
 describe('CourseScreen', () => {
-  beforeEach(() => { completed.value = []; });
-
-  it('lists every lesson in course order with a state label', () => {
-    const { getByRole, container } = renderScreen();
-    expect(getByRole('heading', { name: 'Тексты' })).toBeInTheDocument();
-    const items = [...container.querySelectorAll('.course-item')];
-    expect(items.map((el) => el.getAttribute('data-lesson'))).toEqual(['m1', 'r1', 'm2']);
-    expect(items[0]).toHaveAttribute('data-state', 'current');
-    expect(items[1]).toHaveAttribute('data-state', 'locked'); // r1 stage 4 > ceiling 2
-    expect(items[2]).toHaveAttribute('data-state', 'locked');
+  beforeEach(() => {
+    completed.value = [];
+    carded.value = new Set();
   });
 
-  it('renders a "Продолжить" link to the current mandatory lesson', () => {
-    const { getByRole } = renderScreen();
-    expect(getByRole('link', { name: /Продолжить/ })).toHaveAttribute('href', '/lesson/m1');
+  it('has a "Курс" heading', () => {
+    renderScreen();
+    expect(screen.getByRole('heading', { name: 'Курс' })).toBeInTheDocument();
   });
 
-  it('after m1 is completed, m2 is current and r1 becomes a reading link', () => {
-    completed.value = ['m1'];
+  it('lists every grammar point with done / current / ahead markers', () => {
+    completed.value = ['g1'];
+    renderScreen();
+    expect(screen.getByText('A').closest('[data-state]')).toHaveAttribute('data-state', 'done');
+    expect(screen.getByText('B').closest('[data-state]')).toHaveAttribute('data-state', 'current');
+    expect(screen.getByText('C').closest('[data-state]')).toHaveAttribute('data-state', 'ahead');
+  });
+
+  it('a point that already has a card counts as done', () => {
+    carded.value = new Set(['grammar:g1']);
     const { container } = renderScreen();
     const byId = (id: string) => container.querySelector(`.course-item[data-lesson="${id}"]`)!;
-    expect(byId('m1')).toHaveAttribute('data-state', 'done');
-    expect(byId('m2')).toHaveAttribute('data-state', 'current');
-    expect(byId('r1')).toHaveAttribute('data-state', 'unlocked-reading');
-    expect(byId('r1').querySelector('a')).toHaveAttribute('href', '/lesson/r1');
+    expect(byId('g1')).toHaveAttribute('data-state', 'done');
+    expect(byId('g2')).toHaveAttribute('data-state', 'current');
   });
 
-  it('a locked lesson is not a link', () => {
+  it('the CTA says "Начать курс" and targets the current point when nothing is done', () => {
+    renderScreen();
+    const cta = screen.getByRole('link', { name: /Начать курс/ });
+    expect(cta).toHaveAttribute('href', '/course/g1');
+  });
+
+  it('the CTA says "Продолжить" once at least one point is done', () => {
+    completed.value = ['g1'];
+    renderScreen();
+    expect(screen.getByRole('link', { name: /Продолжить/ })).toHaveAttribute('href', '/course/g2');
+  });
+
+  it('every point is a link (no locked state)', () => {
     const { container } = renderScreen();
-    const locked = container.querySelector('.course-item[data-state="locked"]')!;
-    expect(locked.querySelector('a')).toBeNull();
+    for (const el of container.querySelectorAll('.course-item')) {
+      expect(el.querySelector('a')).not.toBeNull();
+    }
   });
 
-  it('with only free-reading lessons every item is a reading link and there is no "Продолжить"', () => {
-    try {
-      (fakeDb as unknown as { listLessons: () => LessonMeta[] }).listLessons = () => [
-        lm('a', 2, false), lm('b', 40, false),
-      ];
-      const { queryByRole, container } = renderScreen();
-      expect(queryByRole('link', { name: /Продолжить/ })).toBeNull();
-      expect([...container.querySelectorAll('.course-item')].every(
-        (el) => el.getAttribute('data-state') === 'unlocked-reading',
-      )).toBe(true);
-    } finally {
-      (fakeDb as unknown as { listLessons: () => LessonMeta[] }).listLessons = () => lessons;
-    }
+  it('shows a "курс пройден" state and no CTA when every point is done', () => {
+    completed.value = ['g1', 'g2', 'g3'];
+    renderScreen();
+    expect(screen.queryByRole('link', { name: /Продолжить|Начать курс/ })).toBeNull();
+    expect(screen.getByText(/курс пройден/i)).toBeInTheDocument();
   });
 });
