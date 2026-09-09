@@ -9,11 +9,7 @@ import { newCard, review } from '@/core/srs';
 import type { Answer, GradedAnswer } from '@/core/quiz/types';
 import type { GrammarPointFull } from '@/storage/content-db';
 import type { KanjiPoint, VocabPoint } from '@/core/types';
-import { GrammarMarkdown } from '@/ui/components/GrammarMarkdown';
-import { Furigana } from '@/ui/components/Furigana';
 import { QuestionView } from '@/ui/components/QuestionView';
-import { KanjiLearnCard } from '@/ui/components/KanjiLearnCard';
-import { VocabLearnCard } from '@/ui/components/VocabLearnCard';
 
 export function ReviewScreen() {
   const user = useUserDb();
@@ -49,17 +45,14 @@ export function ReviewScreen() {
 
   // Skip a step whose content id no longer resolves.
   const stepItemId =
-    step?.phase === 'learn'
-      ? step.itemId
-      : step?.phase === 'review'
-        ? step.item.itemId
-        : step?.phase === 'minitest'
-          ? step.sourceItemId
-          : null;
+    step?.phase === 'review'
+      ? step.item.itemId
+      : step?.phase === 'minitest'
+        ? step.sourceItemId
+        : null;
   // Minitest steps are always grammar-sourced (mini-test stays grammar-only, Plan 4b-1).
   const stepItemType =
-    step?.phase === 'learn' ? step.itemType
-    : step?.phase === 'review' ? step.item.itemType
+    step?.phase === 'review' ? step.item.itemType
     : step?.phase === 'minitest' ? 'grammar'
     : null;
   const point: GrammarPointFull | KanjiPoint | VocabPoint | null =
@@ -104,7 +97,7 @@ export function ReviewScreen() {
 
   const answer = useCallback(
     (a: Answer) => {
-      if (!step || step.phase === 'learn' || graded) return;
+      if (!step || graded) return;
       setLastAnswer(a);
       setGraded(grade(step.question, a));
     },
@@ -131,8 +124,6 @@ export function ReviewScreen() {
     setIdx((i) => i + 1);
   }, [step, graded, user, params]);
 
-  const proceedLearn = useCallback(() => setIdx((i) => i + 1), []);
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -140,17 +131,12 @@ export function ReviewScreen() {
         return;
       }
       if (!step) return;
-      if (step.phase === 'learn' && e.key === 'Enter') {
-        proceedLearn();
-        return;
-      }
       if (graded && e.key === 'Enter') {
         next();
         return;
       }
       if (
         !graded &&
-        (step.phase === 'review' || step.phase === 'minitest') &&
         (step.question.kind === 'cloze' || step.question.kind === 'choice') &&
         ['1', '2', '3', '4'].includes(e.key)
       ) {
@@ -159,7 +145,7 @@ export function ReviewScreen() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [step, graded, answer, next, proceedLearn, navigate]);
+  }, [step, graded, answer, next, navigate]);
 
   if (idx >= steps.length && (retryBuilt.current || retryIds.current.size === 0)) {
     const mt = tally.mt === 0 ? 'мини-тест —' : `мини-тест ${tally.mc}/${tally.mt}`;
@@ -184,47 +170,19 @@ export function ReviewScreen() {
         {idx + 1} / {steps.length}
       </div>
 
-      {step.phase === 'learn' && (
-        <div className="review-learn">
-          {stepItemType === 'grammar' && (
-            <>
-              <h2>{(point as GrammarPointFull).title}</h2>
-              <GrammarMarkdown source={(point as GrammarPointFull).bodyMarkdown} />
-              <ul className="examples">
-                {(point as GrammarPointFull).examples.map((ex, i) => (
-                  <li key={i} className="example">
-                    <div className="example-ja">
-                      <Furigana text={ex.jaRuby} />
-                    </div>
-                    <div className="example-ru">{ex.ru}</div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {stepItemType === 'kanji' && <KanjiLearnCard point={point as KanjiPoint} />}
-          {stepItemType === 'vocab' && <VocabLearnCard point={point as VocabPoint} />}
-          <button type="button" className="btn-primary" onClick={proceedLearn}>
-            Понятно
+      <div className="review-question">
+        <QuestionView
+          key={step.question.id}
+          question={step.question}
+          onAnswer={answer}
+          revealed={graded}
+        />
+        {graded && (
+          <button type="button" className="btn-primary" onClick={next}>
+            Далее
           </button>
-        </div>
-      )}
-
-      {(step.phase === 'review' || step.phase === 'minitest') && (
-        <div className="review-question">
-          <QuestionView
-            key={step.question.id}
-            question={step.question}
-            onAnswer={answer}
-            revealed={graded}
-          />
-          {graded && (
-            <button type="button" className="btn-primary" onClick={next}>
-              Далее
-            </button>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }

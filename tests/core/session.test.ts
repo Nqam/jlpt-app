@@ -59,32 +59,19 @@ describe('core/session', () => {
   let user: UserDb;
   beforeEach(async () => { user = await UserDb.open(fakeAdapter(), '0.3.0', now); });
 
-  it('new card -> learn step then review step', () => {
+  it('a fresh db yields no steps: new material comes only from lessons', () => {
     const steps = buildDailySession(user, fakeContent(), now);
-    expect(steps.length).toBeGreaterThan(0);
-    const firstNew = steps.findIndex((s) => s.phase === 'review' && s.item.kind === 'new');
-    expect(steps[firstNew - 1]).toMatchObject({ phase: 'learn' });
-    expect(steps[firstNew - 1]).toMatchObject({ itemId: (steps[firstNew] as { item: { itemId: string } }).item.itemId });
+    expect(steps).toHaveLength(0);
   });
 
-  it('due card -> review step only, no learn', () => {
+  it('due card -> exactly one review step', () => {
     const c = newCard('grammar', 'p1', now);
     c.reps = 4; c.stability = 10; c.due = new Date(now.getTime() - 3_600_000).toISOString();
     user.upsertCard(c);
     const steps = buildDailySession(user, fakeContent(), now);
-    const p1Steps = steps.filter((s) =>
-      (s.phase === 'learn' && s.itemId === 'p1') ||
-      (s.phase === 'review' && s.item.itemId === 'p1'));
+    const p1Steps = steps.filter((s) => s.phase === 'review' && s.item.itemId === 'p1');
     expect(p1Steps).toHaveLength(1);
     expect(p1Steps[0]!.phase).toBe('review');
-  });
-
-  it('first step is never a review of a new card', () => {
-    const c = newCard('grammar', 'p1', now);
-    c.reps = 4; c.stability = 10; c.due = new Date(now.getTime() - 3_600_000).toISOString();
-    user.upsertCard(c);
-    const steps = buildDailySession(user, fakeContent(), now);
-    expect(steps[0]!.phase === 'review' && steps[0]!.item.kind === 'new').toBe(false);
   });
 
   it('no mini-test steps when fewer than 5 cards are learned', () => {
@@ -123,7 +110,7 @@ describe('core/session', () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
-  it('a kanji new item produces a learn step (itemType kanji) then a kanji-generated review question', () => {
+  it('a due kanji card produces a kanji-generated review question', () => {
     const kanjiPoint = {
       id: 'n5-学', level: 'N5', char: '学', onyomi: ['ガク'], kunyomi: ['まな.ぶ'],
       strokeCount: 8, meaningRu: 'учиться',
@@ -138,12 +125,12 @@ describe('core/session', () => {
       getVocab: () => null,
     } as unknown as ContentDb;
 
+    user.upsertCard(newCard('kanji', 'n5-学', now));
     const steps = buildDailySession(user, content, now);
     const reviewIdx = steps.findIndex(
       (s) => s.phase === 'review' && s.item.itemType === 'kanji' && s.item.itemId === 'n5-学',
     );
     expect(reviewIdx).toBeGreaterThanOrEqual(0);
-    expect(steps[reviewIdx - 1]).toMatchObject({ phase: 'learn', itemType: 'kanji', itemId: 'n5-学' });
     const reviewStep = steps[reviewIdx] as Extract<(typeof steps)[number], { phase: 'review' }>;
     expect(reviewStep.question.itemType).toBe('kanji');
     expect(reviewStep.question.kind).toBe('choice');
@@ -168,6 +155,8 @@ describe('core/session', () => {
       getVocab: () => null,
     } as unknown as ContentDb;
 
+    user.upsertCard(newCard('kanji', 'n5-学', now));
+    user.upsertCard(newCard('kanji', 'n5-生', now));
     const steps = buildDailySession(user, content, now);
     const reviewSteps = steps.filter(
       (s): s is Extract<(typeof steps)[number], { phase: 'review' }> =>
@@ -183,7 +172,7 @@ describe('core/session', () => {
     expect(ids).toEqual(['n5-学:2026-03-10', 'n5-生:2026-03-10'].sort());
   });
 
-  it('a vocab new item produces a learn step (itemType vocab) then a vocab-generated review question', () => {
+  it('a due vocab card produces a vocab-generated review question', () => {
     const vocabPoint = {
       id: 'n5-挨拶-あいさつ', level: 'N5', headword: '挨拶', reading: 'あいさつ', pos: 'сущ.', meaningRu: 'приветствие',
     };
@@ -197,12 +186,12 @@ describe('core/session', () => {
       getVocab: (id: string) => (id === 'n5-挨拶-あいさつ' ? vocabPoint : null),
     } as unknown as ContentDb;
 
+    user.upsertCard(newCard('vocab', 'n5-挨拶-あいさつ', now));
     const steps = buildDailySession(user, content, now);
     const reviewIdx = steps.findIndex(
       (s) => s.phase === 'review' && s.item.itemType === 'vocab' && s.item.itemId === 'n5-挨拶-あいさつ',
     );
     expect(reviewIdx).toBeGreaterThanOrEqual(0);
-    expect(steps[reviewIdx - 1]).toMatchObject({ phase: 'learn', itemType: 'vocab', itemId: 'n5-挨拶-あいさつ' });
     const reviewStep = steps[reviewIdx] as Extract<(typeof steps)[number], { phase: 'review' }>;
     expect(reviewStep.question.itemType).toBe('vocab');
     expect(reviewStep.question.kind).toBe('choice');

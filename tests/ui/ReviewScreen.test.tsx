@@ -71,7 +71,7 @@ describe('ReviewScreen', () => {
   it('a review step persists exactly one card and one log row', () => {
     steps.value = [{
       phase: 'review',
-      item: { itemType: 'grammar', itemId: 'p1', kind: 'due' },
+      item: { itemType: 'grammar', itemId: 'p1' },
       question: choiceQ('p1:d:choice'),
     }];
     renderScreen();
@@ -101,8 +101,8 @@ describe('ReviewScreen', () => {
 
   it('advancing steps does not flash the previous breakdown', () => {
     steps.value = [
-      { phase: 'review', item: { itemType: 'grammar', itemId: 'p1', kind: 'due' }, question: choiceQ('p1:d:choice') },
-      { phase: 'review', item: { itemType: 'grammar', itemId: 'p2', kind: 'due' }, question: choiceQ('p2:d:choice') },
+      { phase: 'review', item: { itemType: 'grammar', itemId: 'p1' }, question: choiceQ('p1:d:choice') },
+      { phase: 'review', item: { itemType: 'grammar', itemId: 'p2' }, question: choiceQ('p2:d:choice') },
     ];
     renderScreen();
     fireEvent.click(screen.getByRole('button', { name: 'A' }));
@@ -112,19 +112,15 @@ describe('ReviewScreen', () => {
     expect(screen.queryByText('Верно')).toBeNull();
   });
 
-  it('a kanji learn step renders KanjiLearnCard, and a kanji review step persists under item_type "kanji"', () => {
+  it('a kanji review step persists under item_type "kanji"', () => {
     steps.value = [
-      { phase: 'learn', itemType: 'kanji', itemId: 'n5-学' },
       {
         phase: 'review',
-        item: { itemType: 'kanji', itemId: 'n5-学', kind: 'new' },
+        item: { itemType: 'kanji', itemId: 'n5-学' },
         question: { id: 'n5-学:d:choice', itemType: 'kanji', itemId: 'n5-学', kind: 'choice', prompt: 'Что означает «学»?', choices: ['A', 'B', 'C', 'D'], answerIndex: 0 },
       },
     ];
     renderScreen();
-    expect(screen.getByText('学')).toBeInTheDocument();
-    expect(screen.getByText('учиться')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /понятно/i }));
     fireEvent.click(screen.getByRole('button', { name: 'A' }));
     fireEvent.click(screen.getByRole('button', { name: /далее/i }));
     expect(upsertCard).toHaveBeenCalledTimes(1);
@@ -133,19 +129,15 @@ describe('ReviewScreen', () => {
     expect(cardArg.item_id).toBe('n5-学');
   });
 
-  it('a vocab learn step renders VocabLearnCard, and a vocab review step persists under item_type "vocab"', () => {
+  it('a vocab review step persists under item_type "vocab"', () => {
     steps.value = [
-      { phase: 'learn', itemType: 'vocab', itemId: 'n5-挨拶-あいさつ' },
       {
         phase: 'review',
-        item: { itemType: 'vocab', itemId: 'n5-挨拶-あいさつ', kind: 'new' },
+        item: { itemType: 'vocab', itemId: 'n5-挨拶-あいさつ' },
         question: { id: 'n5-挨拶-あいさつ:d:choice', itemType: 'vocab', itemId: 'n5-挨拶-あいさつ', kind: 'choice', prompt: 'Что означает «挨拶»?', choices: ['A', 'B', 'C', 'D'], answerIndex: 0 },
       },
     ];
     renderScreen();
-    expect(screen.getByText('挨拶')).toBeInTheDocument();
-    expect(screen.getByText('приветствие')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /понятно/i }));
     fireEvent.click(screen.getByRole('button', { name: 'A' }));
     fireEvent.click(screen.getByRole('button', { name: /далее/i }));
     expect(upsertCard).toHaveBeenCalledTimes(1);

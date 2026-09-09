@@ -14,10 +14,9 @@ import { levelPointsFor } from '@/core/quiz/level-points';
 export { levelPointsFor };
 
 export type SessionStep =
-  | { phase: 'learn'; itemType: ItemType; itemId: string }
   | {
       phase: 'review';
-      item: { itemType: ItemType; itemId: string; kind: 'due' | 'new' };
+      item: { itemType: ItemType; itemId: string };
       question: Question;
     }
   | { phase: 'minitest'; question: Question; sourceItemId: string; index: number };
@@ -65,10 +64,9 @@ export function buildDailySession(user: UserDb, content: ContentDb, now: Date): 
       question = generateVocabQuestion(point, vocabLevelPoints(point.level), reps, `${qi.itemId}:${dayKey}`);
     }
 
-    if (qi.kind === 'new') steps.push({ phase: 'learn', itemType: qi.itemType, itemId: qi.itemId });
     steps.push({
       phase: 'review',
-      item: { itemType: qi.itemType, itemId: qi.itemId, kind: qi.kind },
+      item: { itemType: qi.itemType, itemId: qi.itemId },
       question,
     });
   }

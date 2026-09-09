@@ -59,7 +59,7 @@ export function TodayScreen() {
 
   const miniMark = s.miniTestEligible ? (s.reviewedToday > 0 ? '✓' : '—') : '—';
   const showStart =
-    s.dueCount > 0 || s.newCount > 0 || (s.miniTestEligible && s.reviewedToday === 0);
+    s.dueCount > 0 || (s.miniTestEligible && s.reviewedToday === 0);
 
   return (
     <section className="today">
@@ -79,7 +79,7 @@ export function TodayScreen() {
       ) : (
         <>
           <p className="today-line">
-            {s.dueCount} повторить · {s.newCount} новых · мини-тест {miniMark} · стрик {st.current}
+            {s.dueCount} повторить · мини-тест {miniMark} · стрик {st.current}
           </p>
           {s.queueOverCap && (
             <p className="today-hint">Много повторений — новые пункты пока на паузе.</p>

@@ -1,15 +1,13 @@
 import type { UserDb } from '@/storage/user-db';
 import type { ContentDb } from '@/storage/content-db';
 import type { ItemType } from '@/core/types';
-import { startOfLocalDay, endOfLocalDay, toUtcIso, localDayKey } from '@/core/time';
+import { endOfLocalDay, toUtcIso, localDayKey } from '@/core/time';
 import { statusOf } from '@/core/srs';
-import { availableLevelCodes } from '@/core/levels';
 
 export type { ItemType };
 
 export interface DaySummary {
   dueCount: number;
-  newCount: number;
   reviewedToday: number;
   queueOverCap: boolean;
   allDone: boolean;
@@ -21,12 +19,10 @@ export interface DaySummary {
 export interface QueueItem {
   itemType: ItemType;
   itemId: string;
-  kind: 'due' | 'new';
 }
 
 function settings(user: UserDb) {
   return {
-    newPerDay: user.getSetting('new_per_day', 5),
     cap: user.getSetting('review_queue_cap', 100),
   };
 }
@@ -92,16 +88,12 @@ function knownItemIds(content: ContentDb, itemType: ItemType): Set<string> {
 interface TypeContext {
   dueSorted: { itemId: string; due: string }[]; // due <= end of day, sorted by due ascending
   nextDueAt: string | null; // earliest due strictly after end of day, if any
-  unknownAvailable: string[]; // available ids with no card yet, in introduction order
-  introducedToday: number;
 }
 
 function typeContext(
   user: UserDb, content: ContentDb, now: Date, itemType: ItemType,
-  availableCodes: ReadonlySet<string>,
 ): TypeContext {
   const endIso = toUtcIso(endOfLocalDay(now));
-  const startIso = toUtcIso(startOfLocalDay(now));
   // Drop cards whose content id no longer exists (renamed/removed point): the
   // review screen can't render them, so they must not gate or fill the queue.
   const knownContent = knownItemIds(content, itemType);
@@ -115,59 +107,11 @@ function typeContext(
   const future = cards.filter((c) => c.due > endIso).map((c) => c.due).sort();
   const nextDueAt = future.length ? future[0]! : null;
 
-  const known = new Set(cards.map((c) => c.item_id));
-  const unknownAvailable = availableItemIds(content, itemType, availableCodes).filter((id) => !known.has(id));
-  const introducedToday = user.introducedOnOrAfter(startIso, itemType);
-
-  return { dueSorted, nextDueAt, unknownAvailable, introducedToday };
-}
-
-/**
- * Water-fills `total` across the types in `order`: each round gives every
- * still-hungry type an equal FLOOR share of what's left, hands the one-unit-
- * per-type remainder to the first types in `order` (at most one extra unit
- * each), caps each type at its remaining room, then drops types that hit
- * their room and repeats. A type with zero room from the start (no available
- * content, e.g. a level not shipped yet, or a test fixture that doesn't stub
- * it) never enters a round and never steals budget from the others.
- *
- * Uses floor+remainder rather than a per-round `Math.ceil` share: with 2
- * active types, ceil and floor+remainder agree (there is at most one leftover
- * unit either way). From 3 types on they diverge -- a ceil share rounds UP
- * for EVERY type in the round, not just enough of them to place the
- * remainder, so the earlier types in `order` can jointly exhaust the whole
- * round's budget before the loop ever reaches the later ones. Concretely,
- * total=7 across three unlimited-room types used to yield
- * grammar=3/kanji=3/vocab=1 (kanji's rounded-up 3 ate the unit vocab should
- * have shared); floor+remainder yields grammar=3/kanji=2/vocab=2.
- */
-function allocateBudget(
-  total: number,
-  order: readonly ItemType[],
-  capacity: (t: ItemType) => number,
-): Record<ItemType, number> {
-  const alloc = Object.fromEntries(order.map((t) => [t, 0])) as Record<ItemType, number>;
-  let remaining = total;
-  let active = order.filter((t) => capacity(t) > 0);
-  while (remaining > 0 && active.length > 0) {
-    const base = Math.floor(remaining / active.length);
-    let leftover = remaining - base * active.length;
-    for (const t of active) {
-      const room = capacity(t) - alloc[t];
-      const want = base + (leftover > 0 ? 1 : 0);
-      if (leftover > 0) leftover -= 1;
-      const take = Math.min(want, room, remaining);
-      alloc[t] += take;
-      remaining -= take;
-    }
-    active = active.filter((t) => capacity(t) - alloc[t] > 0);
-  }
-  return alloc;
+  return { dueSorted, nextDueAt };
 }
 
 interface Split {
   due: QueueItem[];
-  newItems: QueueItem[];
   dueTotalBeforeCap: number;
   queueOverCap: boolean;
   reviewedToday: number;
@@ -175,11 +119,10 @@ interface Split {
 }
 
 function split(user: UserDb, content: ContentDb, now: Date): Split {
-  const { newPerDay, cap } = settings(user);
-  const availableCodes = availableLevelCodes(user, content, now);
+  const { cap } = settings(user);
 
   const ctx = Object.fromEntries(
-    ITEM_TYPES.map((t) => [t, typeContext(user, content, now, t, availableCodes)]),
+    ITEM_TYPES.map((t) => [t, typeContext(user, content, now, t)]),
   ) as Record<ItemType, TypeContext>;
 
   // Merge all due cards across types, globally sorted by due date, capped once
@@ -191,24 +134,15 @@ function split(user: UserDb, content: ContentDb, now: Date): Split {
   const queueOverCap = dueTotalBeforeCap > cap;
   const due: QueueItem[] = allDue
     .slice(0, cap)
-    .map((d) => ({ itemType: d.itemType, itemId: d.itemId, kind: 'due' as const }));
+    .map((d) => ({ itemType: d.itemType, itemId: d.itemId }));
 
   const nextDueCandidates = ITEM_TYPES.map((t) => ctx[t].nextDueAt).filter((x): x is string => x !== null);
   const nextDueAt = nextDueCandidates.length ? nextDueCandidates.sort()[0]! : null;
 
-  const introducedToday = ITEM_TYPES.reduce((sum, t) => sum + ctx[t].introducedToday, 0);
-  const totalBudget = queueOverCap ? 0 : Math.max(0, newPerDay - introducedToday);
-  const alloc = allocateBudget(totalBudget, ITEM_TYPES, (t) => ctx[t].unknownAvailable.length);
-  const newItems: QueueItem[] = ITEM_TYPES.flatMap((t) =>
-    ctx[t].unknownAvailable
-      .slice(0, alloc[t])
-      .map((id): QueueItem => ({ itemType: t, itemId: id, kind: 'new' })),
-  );
-
   const reviewedToday =
     user.reviewCountsByDay().find((r) => r.day_key === localDayKey(now))?.count ?? 0;
 
-  return { due, newItems, dueTotalBeforeCap, queueOverCap, reviewedToday, nextDueAt };
+  return { due, dueTotalBeforeCap, queueOverCap, reviewedToday, nextDueAt };
 }
 
 export function daySummary(user: UserDb, content: ContentDb, now: Date): DaySummary {
@@ -221,10 +155,9 @@ export function daySummary(user: UserDb, content: ContentDb, now: Date): DaySumm
     }).length;
   return {
     dueCount: s.due.length,
-    newCount: s.newItems.length,
     reviewedToday: s.reviewedToday,
     queueOverCap: s.queueOverCap,
-    allDone: s.due.length === 0 && s.newItems.length === 0,
+    allDone: s.due.length === 0,
     nextDueAt: s.nextDueAt,
     miniTestEligible: learnedOrBetter >= 5,
   };
@@ -232,13 +165,7 @@ export function daySummary(user: UserDb, content: ContentDb, now: Date): DaySumm
 
 export function buildQueue(user: UserDb, content: ContentDb, now: Date): QueueItem[] {
   const s = split(user, content, now);
-  const items: QueueItem[] = [...s.due, ...s.newItems];
-  const shuffled = seededShuffle(items, hashSeed(localDayKey(now)));
-  if (s.due.length > 0 && shuffled[0]?.kind === 'new') {
-    const firstDue = shuffled.findIndex((i) => i.kind === 'due');
-    if (firstDue > 0) [shuffled[0], shuffled[firstDue]] = [shuffled[firstDue]!, shuffled[0]!];
-  }
-  return shuffled;
+  return seededShuffle([...s.due], hashSeed(localDayKey(now)));
 }
 
 function hashSeed(s: string): number {
