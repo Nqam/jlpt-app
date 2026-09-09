@@ -4,6 +4,7 @@ import { useUserDb } from '@/ui/useUserDb';
 import { useContentDb } from '@/ui/useContentDb';
 import { daySummary } from '@/core/scheduler';
 import { streak } from '@/core/progress';
+import { currentMandatoryLessonId, courseCompletedIds } from '@/core/course';
 
 function relative(iso: string, now: Date): string {
   const ms = new Date(iso).getTime() - now.getTime();
@@ -57,6 +58,11 @@ export function TodayScreen() {
   const s = daySummary(user, content, now);
   const st = streak(user, now);
 
+  const lessons = content.listLessons();
+  const completedSet = new Set(courseCompletedIds(user));
+  const curId = currentMandatoryLessonId(lessons, completedSet);
+  const curLesson = curId ? lessons.find((l) => l.id === curId) ?? null : null;
+
   const miniMark = s.miniTestEligible ? (s.reviewedToday > 0 ? '✓' : '—') : '—';
   const showStart =
     s.dueCount > 0 || (s.miniTestEligible && s.reviewedToday === 0);
@@ -82,10 +88,17 @@ export function TodayScreen() {
             {s.dueCount} повторить · мини-тест {miniMark} · стрик {st.current}
           </p>
           {s.queueOverCap && (
-            <p className="today-hint">Много повторений — новые пункты пока на паузе.</p>
+            <p className="today-hint">Очередь повторений переполнена — часть карточек перенесена на потом.</p>
           )}
           {showStart && <Link className="btn-primary" to="/review">Начать</Link>}
         </>
+      )}
+      {curLesson ? (
+        <Link className="btn-ghost today-course" to={`/lesson/${curLesson.id}`}>
+          Продолжить курс · Урок {curLesson.stage}: {curLesson.title}
+        </Link>
+      ) : (
+        <Link className="btn-ghost today-course" to="/course">Курс</Link>
       )}
     </section>
   );

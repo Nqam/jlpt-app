@@ -343,3 +343,5 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .lesson-summary-title { font-size: 1.15rem; color: var(--ok); font-weight: 600; margin: 0; }
 .lesson-summary-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 .lesson-back { align-self: flex-start; margin-bottom: 0.5rem; }
+
+.today-course { display: block; margin-top: 0.75rem; }
