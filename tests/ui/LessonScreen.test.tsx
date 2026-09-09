@@ -116,7 +116,7 @@ describe('LessonScreen', () => {
     store.progress = { 'n5-hanami': { step: 4 } };
     renderAt('/lesson/n5-hanami');
     expect(screen.getByText(/Урок пройден/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /К курсу/ })).toHaveAttribute('href', '/course');
+    expect(screen.getByRole('link', { name: /К текстам/ })).toHaveAttribute('href', '/course');
     expect(screen.getByRole('link', { name: /Следующий/ })).toHaveAttribute('href', '/lesson/n5-konbini');
   });
 

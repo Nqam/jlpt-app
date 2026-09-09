@@ -13,11 +13,11 @@ async function launch() {
   return { app, win };
 }
 
-test('the "Курс" nav item opens /course and lists the migrated lessons as free reading', async () => {
+test('the "Тексты" nav item opens /course and lists the migrated lessons as free reading', async () => {
   const { app, win } = await launch();
   await win.setViewportSize({ width: 380, height: 800 });
-  await win.getByRole('link', { name: /Курс/ }).click();
-  await expect(win.getByRole('heading', { name: 'Курс' })).toBeVisible();
+  await win.getByRole('link', { name: /Тексты/ }).click();
+  await expect(win.getByRole('heading', { name: 'Тексты' })).toBeVisible();
   // the course list screen fits a narrow window with no horizontal overflow
   const listOverflow = await win.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -39,7 +39,7 @@ test('walking a free-reading lesson: Read -> Comprehension -> Summary, and it su
   let win = await app.firstWindow();
   await win.waitForSelector('[data-testid="user-db-ready"]', { state: 'attached', timeout: 20_000 });
 
-  await win.getByRole('link', { name: /Курс/ }).click();
+  await win.getByRole('link', { name: /Тексты/ }).click();
   await win.locator('.course-item[data-lesson="n5-hanami"] a').click();
   await expect(win.getByRole('heading', { name: 'お花見' })).toBeVisible();
 
@@ -62,7 +62,7 @@ test('walking a free-reading lesson: Read -> Comprehension -> Summary, and it su
   app = await electron.launch({ args });
   win = await app.firstWindow();
   await win.waitForSelector('[data-testid="user-db-ready"]', { state: 'attached', timeout: 20_000 });
-  await win.getByRole('link', { name: /Курс/ }).click();
+  await win.getByRole('link', { name: /Тексты/ }).click();
   await expect(win.locator('.course-item[data-lesson="n5-hanami"]')).toHaveAttribute('data-state', 'done');
   await app.close();
 });
@@ -70,7 +70,7 @@ test('walking a free-reading lesson: Read -> Comprehension -> Summary, and it su
 test('/texts and /texts/:id redirect into the course', async () => {
   const { app, win } = await launch();
   await win.evaluate(() => { window.location.hash = '#/texts'; });
-  await expect(win.getByRole('heading', { name: 'Курс' })).toBeVisible();
+  await expect(win.getByRole('heading', { name: 'Тексты' })).toBeVisible();
   await win.evaluate(() => { window.location.hash = '#/texts/n5-hanami'; });
   await expect(win.getByRole('heading', { name: 'お花見' })).toBeVisible();
   await app.close();
@@ -79,7 +79,7 @@ test('/texts and /texts/:id redirect into the course', async () => {
 test('the reinforce step / option buttons stay inside a 380px-wide window', async () => {
   const { app, win } = await launch();
   await win.setViewportSize({ width: 380, height: 800 });
-  await win.getByRole('link', { name: /Курс/ }).click();
+  await win.getByRole('link', { name: /Тексты/ }).click();
   await win.locator('.course-item[data-lesson="n5-hanami"] a').click();
   await win.getByRole('button', { name: 'Дальше' }).click(); // to Comprehension
 

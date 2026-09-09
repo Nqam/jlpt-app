@@ -100,6 +100,19 @@ export function SettingsScreen() {
   }
   void resetTick; // referenced only to justify the re-render it triggers
 
+  const resetAll = async () => {
+    if (
+      !window.confirm(
+        'Стереть весь прогресс: карточки, историю повторений, результаты вступительного теста и прогресс курса. Уровень N4 снова заблокируется. Действие необратимо. Продолжить?',
+      )
+    ) {
+      return;
+    }
+    user.resetAll();
+    await user.flush();
+    window.location.reload();
+  };
+
   const resetType = (type: 'grammar' | 'kanji' | 'vocab', label: string) => {
     const ids = markedByType.get(type) ?? [];
     if (ids.length === 0) return;
@@ -214,6 +227,21 @@ export function SettingsScreen() {
             )}
           </div>
         )}
+      </div>
+
+      <div className="settings-danger">
+        <h2>Сброс</h2>
+        <button
+          type="button"
+          className="btn-ghost settings-danger-btn"
+          onClick={resetAll}
+        >
+          Сбросить весь прогресс
+        </button>
+        <p className="muted">
+          Удалит карточки, историю повторений, результаты теста и прогресс курса.
+          Уровень N4 снова заблокируется.
+        </p>
       </div>
     </section>
   );

@@ -43,7 +43,7 @@ describe('CourseScreen', () => {
 
   it('lists every lesson in course order with a state label', () => {
     const { getByRole, container } = renderScreen();
-    expect(getByRole('heading', { name: 'Курс' })).toBeInTheDocument();
+    expect(getByRole('heading', { name: 'Тексты' })).toBeInTheDocument();
     const items = [...container.querySelectorAll('.course-item')];
     expect(items.map((el) => el.getAttribute('data-lesson'))).toEqual(['m1', 'r1', 'm2']);
     expect(items[0]).toHaveAttribute('data-state', 'current');

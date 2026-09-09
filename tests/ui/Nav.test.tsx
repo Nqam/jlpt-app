@@ -34,7 +34,7 @@ describe('Nav', () => {
 
   it('lists the six primary destinations', () => {
     const { getByRole } = render(<MemoryRouter><Nav /></MemoryRouter>);
-    for (const label of ['Сегодня', 'Грамматика', 'Кандзи', 'Слова', 'Курс', 'Прогресс']) {
+    for (const label of ['Сегодня', 'Грамматика', 'Кандзи', 'Слова', 'Тексты', 'Прогресс']) {
       expect(getByRole('link', { name: new RegExp(label) })).toBeTruthy();
     }
   });

@@ -58,7 +58,7 @@ export function LessonScreen() {
     return (
       <section className="screen lesson-screen">
         <p className="muted">Урок не найден.</p>
-        <Link to="/course" className="back-link">← К курсу</Link>
+        <Link to="/course" className="back-link">← К текстам</Link>
       </section>
     );
   }
@@ -72,7 +72,7 @@ export function LessonScreen() {
   return (
     <section className="screen lesson-screen">
       {step !== LAST_STEP && (
-        <Link to="/course" className="back-link">← К курсу</Link>
+        <Link to="/course" className="back-link">← К текстам</Link>
       )}
       <h1>{lesson.title}</h1>
 
@@ -110,7 +110,7 @@ export function LessonScreen() {
         <div className="lesson-summary">
           <p className="lesson-summary-title">Урок пройден ✓</p>
           <div className="lesson-summary-actions">
-            <Link to="/course" className="btn-ghost">К курсу</Link>
+            <Link to="/course" className="btn-ghost">К текстам</Link>
             {next && <Link to={`/lesson/${next}`} className="btn-primary">Следующий урок</Link>}
           </div>
         </div>

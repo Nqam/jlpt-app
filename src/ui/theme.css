@@ -266,6 +266,11 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .settings-placement { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .settings-placement-reset { margin-top: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
+.settings-danger { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.settings-danger .muted { margin: 0.6rem 0 0; font-size: 0.9rem; }
+.settings-danger-btn { border-color: var(--bad); color: var(--bad); }
+.settings-danger-btn:hover { background: color-mix(in srgb, var(--bad) 12%, transparent); }
+
 /* --- Plan 5-1: интерактивные области вписаны в окно, ничего не обрезается --- */
 /* Дети CSS-grid по умолчанию имеют min-width:auto и раздвигают трек шире
    контейнера при длинном неразрывном содержимом. min-width:0 + перенос по

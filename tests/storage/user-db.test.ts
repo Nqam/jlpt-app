@@ -57,6 +57,33 @@ describe('storage/user-db', () => {
     expect(card?.reps).toBe(1);
   });
 
+  it('resetAll wipes cards, review log and settings, surviving a reopen', async () => {
+    const f = fakeAdapter(null);
+    const db = await UserDb.open(f.adapter, '0.2.0', now);
+    db.upsertCard({
+      item_type: 'grammar', item_id: 'n5-wa-particle',
+      due: '2026-02-02T10:00:00.000Z', stability: 3, difficulty: 5,
+      elapsed_days: 0, scheduled_days: 1, learning_steps: 0,
+      reps: 1, lapses: 0, state: 1, last_review: null,
+      introduced_at: '2026-02-01T10:00:00.000Z',
+    });
+    db.insertReviewLog({
+      item_type: 'grammar', item_id: 'n5-wa-particle',
+      reviewed_at: '2026-02-01T10:00:00.000Z', day_key: '2026-02-01',
+      rating: 3, state_before: 0, stability_after: 3, elapsed_ms: 1000,
+    });
+    db.setSetting('unlocked_levels', ['N4']);
+    await db.flush();
+
+    db.resetAll();
+    await db.flush();
+
+    const db2 = await UserDb.open(f.adapter, '0.2.0', now);
+    expect(db2.allCards()).toHaveLength(0);
+    expect(db2.reviewCountsByDay()).toHaveLength(0);
+    expect(db2.getSetting<string[]>('unlocked_levels', ['fallback'])).toEqual(['fallback']);
+  });
+
   it('debounces writes — many mutations, one flush write', async () => {
     vi.useFakeTimers();
     const f = fakeAdapter(null);

@@ -32,7 +32,7 @@ export function CourseScreen() {
 
   return (
     <section className="screen course">
-      <h1>Курс</h1>
+      <h1>Тексты</h1>
 
       {current && (
         <Link to={`/lesson/${current.id}`} className="btn-primary course-continue">

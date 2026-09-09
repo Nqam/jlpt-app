@@ -12,6 +12,8 @@ const setSetting = vi.fn((key: string, value: unknown) => {
   settings[key] = value;
 });
 const deleteCard = vi.fn();
+const resetAll = vi.fn();
+const flush = vi.fn(async () => {});
 const exportBytes = new Uint8Array([1, 2, 3]);
 const validateImportBytes = vi.fn(async (bytes: Uint8Array) => bytes.length > 0);
 vi.mock('@/ui/useUserDb', () => ({
@@ -19,6 +21,8 @@ vi.mock('@/ui/useUserDb', () => ({
     getSetting: (key: string, fallback: unknown) => settings[key] ?? fallback,
     setSetting,
     deleteCard,
+    resetAll,
+    flush,
     export: () => exportBytes,
     validateImportBytes,
   }),
@@ -63,6 +67,8 @@ describe('SettingsScreen', () => {
     settings['placement_marked_vocab_ids'] = [];
     setSetting.mockClear();
     deleteCard.mockClear();
+    resetAll.mockClear();
+    flush.mockClear();
     exportUserDb.mockClear();
     importUserDb.mockClear();
     writeUserDb.mockClear();
@@ -201,5 +207,21 @@ describe('SettingsScreen', () => {
     renderScreen();
     fireEvent.click(screen.getByRole('button', { name: /сбросить тест: слова/i }));
     expect(deleteCard).not.toHaveBeenCalled();
+  });
+
+  it('"Сбросить весь прогресс" wipes the db, flushes and reloads after confirmation', async () => {
+    renderScreen();
+    fireEvent.click(screen.getByRole('button', { name: /сбросить весь прогресс/i }));
+    await waitFor(() => expect(resetAll).toHaveBeenCalledTimes(1));
+    expect(flush).toHaveBeenCalledTimes(1);
+    expect(window.location.reload).toHaveBeenCalled();
+  });
+
+  it('"Сбросить весь прогресс" does nothing when the confirmation is declined', () => {
+    vi.stubGlobal('confirm', vi.fn(() => false));
+    renderScreen();
+    fireEvent.click(screen.getByRole('button', { name: /сбросить весь прогресс/i }));
+    expect(resetAll).not.toHaveBeenCalled();
+    expect(window.location.reload).not.toHaveBeenCalled();
   });
 });

@@ -129,6 +129,18 @@ export class UserDb {
   }
 
   /**
+   * Полный сброс прогресса: карточки, история повторений, все настройки. Схема и
+   * `meta` не трогаются. После перезагрузки всё читается из fallback-значений
+   * `getSetting`, `unlocked_levels` пуст и `levelCompletion` = 0 — N4 снова закрыт.
+   */
+  resetAll(): void {
+    this.db.run('DELETE FROM cards');
+    this.db.run('DELETE FROM review_log');
+    this.db.run('DELETE FROM settings');
+    this.markDirty();
+  }
+
+  /**
    * Проверяет, что байты открываются как sqlite и содержат все таблицы `user.db`
    * (см. `migrations.ts`'s `V1_SCHEMA`). Не мутирует текущий инстанс. Никогда не
    * бросает — любая проблема (битые байты, не sqlite, чужая схема) даёт `false`.
