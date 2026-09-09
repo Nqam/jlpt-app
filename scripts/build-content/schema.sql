@@ -31,6 +31,16 @@ CREATE TABLE grammar_relations (
   PRIMARY KEY (from_id, to_id)
 );
 
+-- Кандзи JLPT, встречающиеся в примерах пункта грамматики (извлекаются на сборке).
+-- kanji_id намеренно НЕ внешний ключ: сборка уже доказала существование id,
+-- а отсутствие FK снимает ограничение на порядок вставки относительно kanji_points.
+CREATE TABLE grammar_kanji (
+  grammar_id TEXT NOT NULL REFERENCES grammar_points(id),
+  kanji_id   TEXT NOT NULL,
+  ord        INTEGER NOT NULL,
+  PRIMARY KEY (grammar_id, kanji_id)
+);
+
 CREATE TABLE kanji_points (
   id            TEXT PRIMARY KEY,
   level         TEXT NOT NULL REFERENCES levels(code),

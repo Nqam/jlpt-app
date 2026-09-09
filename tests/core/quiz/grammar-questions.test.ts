@@ -7,7 +7,7 @@ import type { GrammarPointFull } from '@/storage/content-db';
 function point(over: Partial<GrammarPointFull> = {}): GrammarPointFull {
   return {
     id: 'n5-wa', level: 'N5', title: 'は (тема предложения)', layer: 1, tags: [], related: [],
-    relatedTitles: [],
+    relatedTitles: [], kanjiIds: [],
     bodyMarkdown: '## Кратко\nЧастица は отмечает тему предложения — то, о чём идёт речь.\n\n## Образование\n[X] は',
     examples: [
       { jaRuby: '私[わたし]は 学生[がくせい]です。', ru: 'Я студент.' },
@@ -47,7 +47,7 @@ describe('coreCandidates', () => {
   it('produces a cloze (not the weak "what does X express" fallback) for a ている-style point', () => {
     const point: GrammarPointFull = {
       id: 'n5-teiru', level: 'N5', title: '〜ている (делаю сейчас / состояние)',
-      layer: 4, tags: [], related: [], relatedTitles: [],
+      layer: 4, tags: [], related: [], relatedTitles: [], kanjiIds: [],
       bodyMarkdown: '## Кратко\nТе-форма + いる.',
       examples: [
         { jaRuby: '私[わたし]は 本[ほん]を 読[よ]んでいます。', ru: 'Я читаю книгу.' },

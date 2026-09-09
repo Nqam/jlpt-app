@@ -27,7 +27,7 @@ function fakeAdapter(): PlatformAdapter {
 
 function mkPoint(id: string, layer: number): GrammarPointFull {
   return {
-    id, level: 'N5', title: `${id}: は (частица темы)`, layer, tags: [], related: [], relatedTitles: [],
+    id, level: 'N5', title: `${id}: は (частица темы)`, layer, tags: [], related: [], relatedTitles: [], kanjiIds: [],
     bodyMarkdown: `## Кратко\nОписание пункта ${id} — что он выражает и когда употребляется.`,
     examples: [
       { jaRuby: `わたしは 毎日[まいにち] 日本語[にほんご]を 勉強[べんきょう]します。`, ru: `перевод ${id}` },

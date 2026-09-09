@@ -38,8 +38,8 @@ beforeEach(() => {
   userCards.value = [];
 });
 const n5: GrammarPoint[] = [
-  { id: 'n5-wa-particle', level: 'N5', title: 'は (тема предложения)', layer: 1, tags: [], related: [], bodyMarkdown: '', examples: [] },
-  { id: 'n5-mo-particle', level: 'N5', title: 'も (тоже)', layer: 2, tags: [], related: [], bodyMarkdown: '', examples: [] },
+  { id: 'n5-wa-particle', level: 'N5', title: 'は (тема предложения)', layer: 1, tags: [], related: [], bodyMarkdown: '', examples: [], kanjiIds: [] },
+  { id: 'n5-mo-particle', level: 'N5', title: 'も (тоже)', layer: 2, tags: [], related: [], bodyMarkdown: '', examples: [], kanjiIds: [] },
 ];
 const fakeDb = {
   listLevels: () => levels,

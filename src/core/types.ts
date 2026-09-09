@@ -33,6 +33,8 @@ export interface GrammarPoint {
   /** Тело объяснения в Markdown (секции ## Кратко / ## Образование / ...). */
   bodyMarkdown: string;
   examples: GrammarExample[];
+  /** JLPT kanji appearing in the examples — build-time extracted. Empty from list methods. */
+  kanjiIds: string[];
 }
 
 export interface RubySegment {

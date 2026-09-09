@@ -123,6 +123,7 @@ export class ContentDb {
       related: [],
       bodyMarkdown: '',
       examples: [],
+      kanjiIds: [],
     };
   }
 
@@ -163,6 +164,10 @@ export class ContentDb {
       'SELECT ja_ruby, ru FROM grammar_examples WHERE grammar_id = ? ORDER BY ord',
       [id],
     ).map((e) => ({ jaRuby: e.ja_ruby, ru: e.ru }));
+    point.kanjiIds = this.all<{ kanji_id: string }>(
+      'SELECT kanji_id FROM grammar_kanji WHERE grammar_id = ? ORDER BY ord',
+      [id],
+    ).map((r) => r.kanji_id);
     const related = this.all<{ id: string; title: string }>(
       `SELECT p.id AS id, p.title AS title
        FROM grammar_relations r JOIN grammar_points p ON p.id = r.to_id

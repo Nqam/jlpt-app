@@ -48,6 +48,7 @@ describe('validateGrammar ruby-base rule', () => {
     related: [],
     bodyMarkdown: '',
     examples,
+    kanjiIds: [],
   });
 
   it('rejects an example whose ruby base contains kana', () => {

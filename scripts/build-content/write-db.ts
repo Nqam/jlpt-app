@@ -5,6 +5,7 @@ import type { SqlJsStatic, Database } from 'sql.js';
 import { loadAllGrammar, validateGrammar } from './parse-grammar';
 import { loadLevels } from './lists';
 import { loadAllKanji, validateKanji } from './kanji';
+import { extractGrammarKanji } from './grammar-kanji';
 import { loadAllVocab, validateVocab } from './vocab';
 import { loadAllLessons, validateLessons, validateLessonRefs } from './lessons';
 import type { ParsedLesson } from './lessons';
@@ -56,29 +57,9 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
   for (const l of levels) insLevel.run([l.code, l.ord, l.status, l.titleRu]);
   insLevel.free();
 
-  const grammarIds = new Set(grammar.map((g) => g.id));
-
-  // Проход 1: сами пункты грамматики и их примеры.
-  const insG = db.prepare(
-    'INSERT INTO grammar_points (id, level, title, layer, tags_json, body_markdown) VALUES (?,?,?,?,?,?)',
-  );
-  const insE = db.prepare('INSERT INTO grammar_examples (grammar_id, ord, ja_ruby, ru) VALUES (?,?,?,?)');
-  for (const g of grammar) {
-    insG.run([g.id, g.level, g.title, g.layer, JSON.stringify(g.tags), g.bodyMarkdown]);
-    g.examples.forEach((e, i) => insE.run([g.id, i, e.jaRuby, e.ru]));
-  }
-  insG.free();
-  insE.free();
-
-  // Проход 2: связи — обе стороны уже существуют, FK не нарушается.
-  const insR = db.prepare('INSERT INTO grammar_relations (from_id, to_id) VALUES (?,?)');
-  for (const g of grammar) {
-    for (const r of [...g.related].sort()) {
-      if (grammarIds.has(r)) insR.run([g.id, r]);
-    }
-  }
-  insR.free();
-
+  // Кандзи грузим и пишем ДО грамматики: набор их id нужен уже в проходе 1,
+  // чтобы вытащить кандзи из примеров (grammar_kanji). Порядок вставки свободен —
+  // kanji_points не ссылается на грамматику, а grammar_kanji.kanji_id не FK.
   const kanji = loadAllKanji(opts.kanjiDir).sort((a, b) => a.id.localeCompare(b.id));
   const kanjiErrors = validateKanji(kanji);
   if (kanjiErrors.length) throw new Error(`kanji validation failed:\n${kanjiErrors.join('\n')}`);
@@ -95,6 +76,36 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
     ]);
   }
   insK.free();
+  const kanjiIdSet = new Set(kanji.map((k) => k.id));
+  const levelCodeList = levels.map((l) => l.code);
+
+  const grammarIds = new Set(grammar.map((g) => g.id));
+
+  // Проход 1: сами пункты грамматики и их примеры.
+  const insG = db.prepare(
+    'INSERT INTO grammar_points (id, level, title, layer, tags_json, body_markdown) VALUES (?,?,?,?,?,?)',
+  );
+  const insE = db.prepare('INSERT INTO grammar_examples (grammar_id, ord, ja_ruby, ru) VALUES (?,?,?,?)');
+  const insGK = db.prepare('INSERT INTO grammar_kanji (grammar_id, kanji_id, ord) VALUES (?,?,?)');
+  for (const g of grammar) {
+    insG.run([g.id, g.level, g.title, g.layer, JSON.stringify(g.tags), g.bodyMarkdown]);
+    g.examples.forEach((e, i) => insE.run([g.id, i, e.jaRuby, e.ru]));
+    extractGrammarKanji(g.examples, kanjiIdSet, levelCodeList).forEach((kid, i) =>
+      insGK.run([g.id, kid, i]),
+    );
+  }
+  insG.free();
+  insE.free();
+  insGK.free();
+
+  // Проход 2: связи — обе стороны уже существуют, FK не нарушается.
+  const insR = db.prepare('INSERT INTO grammar_relations (from_id, to_id) VALUES (?,?)');
+  for (const g of grammar) {
+    for (const r of [...g.related].sort()) {
+      if (grammarIds.has(r)) insR.run([g.id, r]);
+    }
+  }
+  insR.free();
 
   const vocab = loadAllVocab(opts.vocabDir).sort((a, b) => a.id.localeCompare(b.id));
   const vocabErrors = validateVocab(vocab);

@@ -16,6 +16,7 @@ describe('content.db schema', () => {
     const tables = res[0]!.values.map((r) => r[0]);
     expect(tables).toEqual([
       'grammar_examples',
+      'grammar_kanji',
       'grammar_points',
       'grammar_relations',
       'kanji_points',

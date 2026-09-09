@@ -33,6 +33,7 @@ export function parseGrammarFile(path: string): GrammarPoint {
     related: Array.isArray(data['related']) ? data['related'].map(String) : [],
     bodyMarkdown: content.trim(),
     examples,
+    kanjiIds: [],
   };
 }
 

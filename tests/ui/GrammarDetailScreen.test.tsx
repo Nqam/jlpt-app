@@ -41,6 +41,7 @@ const wa: GrammarPointFull = {
   ].join('\n'),
   examples: [{ jaRuby: '私[わたし]は 学生[がくせい]です。', ru: 'Я студент.' }],
   relatedTitles: [{ id: 'n5-ka-question', title: 'か (вопросительная частица)' }],
+  kanjiIds: [],
 };
 
 const fakeDb = {

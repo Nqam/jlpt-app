@@ -65,6 +65,20 @@ describe('ContentDb', () => {
     expect(db.getGrammar('nope')).toBeNull();
   });
 
+  it('getGrammar().kanjiIds are real kanji ids drawn from the examples', () => {
+    // n5-de-particle's examples use 学校/公園/電車/会社… — 学 и 校 есть в content/kanji/n5.tsv
+    const p = db.getGrammar('n5-de-particle');
+    expect(p).not.toBeNull();
+    expect(p!.kanjiIds.length).toBeGreaterThan(0);
+    for (const kid of p!.kanjiIds) {
+      expect(db.getKanji(kid)).not.toBeNull();
+    }
+    // 学 стоит в первом примере ("学校[がっこう]で…") и это кандзи N5
+    expect(p!.kanjiIds).toContain('n5-学');
+    // список-методы кандзи не тянут
+    expect(db.listGrammar('N5').every((g) => g.kanjiIds.length === 0)).toBe(true);
+  });
+
   it('lists N4 grammar sorted by layer, independently of N5', () => {
     const g = db.listGrammar('N4');
     expect(g).toHaveLength(50);

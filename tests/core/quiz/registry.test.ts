@@ -4,7 +4,7 @@ import type { GrammarPointFull } from '@/storage/content-db';
 
 function point(over: Partial<GrammarPointFull> = {}): GrammarPointFull {
   return {
-    id: 'n5-wa', level: 'N5', title: 'は (тема)', layer: 1, tags: [], related: [], relatedTitles: [],
+    id: 'n5-wa', level: 'N5', title: 'は (тема)', layer: 1, tags: [], related: [], relatedTitles: [], kanjiIds: [],
     bodyMarkdown: '## Кратко\nЧастица は отмечает тему предложения.',
     examples: [
       { jaRuby: '私[わたし]は 毎日[まいにち] 日本語[にほんご]を 勉強[べんきょう]します。', ru: 'Я учу японский.' },
