@@ -18,7 +18,7 @@ test('first run: a question-based session records progress and returns to Today'
   const win = await app.firstWindow();
   await win.waitForSelector('[data-testid="user-db-ready"]', { state: 'attached', timeout: 20_000 });
 
-  await win.getByRole('link', { name: /начать/i }).click();
+  await win.getByRole('link', { name: /^Начать$/ }).click();
 
   // 3 due grammar review steps. Each: answer the question (first option is not
   // always correct — either way "Далее" advances), 3x. Sessions no longer have
@@ -59,7 +59,7 @@ test('"Подробнее" on a revealed question opens the grammar detail scree
   const win = await app.firstWindow();
   await win.waitForSelector('[data-testid="user-db-ready"]', { state: 'attached', timeout: 20_000 });
 
-  await win.getByRole('link', { name: /начать/i }).click();
+  await win.getByRole('link', { name: /^Начать$/ }).click();
 
   const assembleDone = win.getByRole('button', { name: /^готово$/i });
   if (await assembleDone.count()) {

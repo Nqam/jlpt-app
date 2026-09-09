@@ -29,7 +29,7 @@ test('a card graded just before closing the window persists across restart', asy
   });
   await expect(win.getByText(/· стрик 0/)).toBeVisible({ timeout: 20_000 });
 
-  await win.getByRole('link', { name: /начать/i }).click();
+  await win.getByRole('link', { name: /^Начать$/ }).click();
   // Answer the question (choice/cloze options, or assemble tokens then its
   // own "Готово"), then advance with "Далее" so the review actually grades
   // and persists — sessions no longer have a learn ("Понятно") step.

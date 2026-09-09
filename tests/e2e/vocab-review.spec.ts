@@ -23,7 +23,7 @@ test('a seeded vocab card is reviewed and persists as item_type vocab', async ()
   const win = await app.firstWindow();
   await win.waitForSelector('[data-testid="user-db-ready"]', { state: 'attached', timeout: 20_000 });
 
-  await win.getByRole('link', { name: /начать/i }).click();
+  await win.getByRole('link', { name: /^Начать$/ }).click();
 
   // Walk the session (one seeded vocab review step) the same generic way
   // kanji-review.spec.ts does: keep clicking whatever control is available

@@ -24,7 +24,7 @@ test('after a session the Progress screen shows non-zero streak, counts and heat
     timeout: 20_000,
   });
 
-  await win.getByRole('link', { name: /начать/i }).click();
+  await win.getByRole('link', { name: /^Начать$/ }).click();
   // Take the first available control until the summary shows: answer choices,
   // assemble tokens, advance with "Далее". Sessions no longer have learn
   // ("Понятно") steps.

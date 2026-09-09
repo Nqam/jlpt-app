@@ -30,7 +30,7 @@ test('seeded learned deck: session ends with a mini-test and a retry round', asy
   await win.waitForSelector('[data-testid="user-db-ready"]', { state: 'attached', timeout: 20_000 });
 
   await expect(win.getByText(/мини-тест —/)).toBeVisible({ timeout: 20_000 });
-  await win.getByRole('link', { name: /начать/i }).click();
+  await win.getByRole('link', { name: /^Начать$/ }).click();
 
   // Answer every question by taking the first available control until the
   // summary shows. Deliberately wrong-ish (first option, or the assemble

@@ -35,15 +35,22 @@ test('the Тексты section: read a text, its ✓ shows on the list, and /les
     win.locator('.text-list-item').first().locator('[aria-label="прочитано"]'),
   ).toBeVisible();
 
-  // NOTE: cross-restart persistence of the ✓ is asserted by Task 10's course
-  // walk; the old `texts_read_ids` → `course_completed_ids` drain is gone
-  // (Task 9), and Task 8's `migrateCourseKeys` reverses any leftovers.
+  // The old `texts_read_ids` → `course_completed_ids` drain is gone (Task 9) and
+  // Task 8's `migrateCourseKeys` reverses any leftovers, so the read mark must
+  // now survive a restart on its own.
   await app.evaluate(({ BrowserWindow }) => { BrowserWindow.getAllWindows()[0]?.close(); });
   await app.close();
 
   app = await electron.launch({ args });
   win = await app.firstWindow();
   await win.waitForSelector('[data-testid="user-db-ready"]', { state: 'attached', timeout: 20_000 });
+
+  // The read ✓ persisted across the restart.
+  await win.getByRole('link', { name: /^Тексты$/ }).click();
+  await expect(win.getByRole('heading', { name: 'Тексты' })).toBeVisible();
+  await expect(
+    win.locator('.text-list-item').first().locator('[aria-label="прочитано"]'),
+  ).toBeVisible();
 
   // Old lesson-player URLs now resolve to the text reader.
   await win.evaluate(() => { window.location.hash = '#/lesson/n5-hanami'; });
