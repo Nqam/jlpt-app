@@ -59,7 +59,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
   width: 100%; margin: 0 auto;
 }
 /* Long unbroken Japanese runs must wrap inside their column, not overflow it. */
-.q-sentence, .q-prompt, .grammar-md, .example-ja,
+.q-sentence, .q-prompt, .grammar-md, .text-body, .example-ja,
 .grammar-list-title, .text-list-title, .vocab-headword { overflow-wrap: anywhere; }
 .grammar-list-title, .text-list-title { min-width: 0; }
 .app-header { display: flex; align-items: center; justify-content: space-between;
