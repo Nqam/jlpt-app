@@ -86,17 +86,32 @@ describe('TodayScreen', () => {
     expect(screen.getByRole('link', { name: /курс/i })).toHaveAttribute('href', '/course');
   });
 
-  it('links the course card to the current mandatory lesson when one exists', () => {
+  it('links the course card to the current mandatory lesson when one exists, labelled "Начать курс" before any lesson is done', () => {
     summary.value = { ...summary.value, dueCount: 0, reviewedToday: 0, allDone: true, miniTestEligible: false };
     courseState.currentId = 'l-5';
+    courseState.completed = [];
     lessons.value = [
       { id: 'l-5', stage: 5, kind: 'story', title: 'Утро', introducesCount: 2, isFreeReading: false },
     ];
     renderScreen();
     const link = screen.getByRole('link', { name: /Урок 5/ });
     expect(link).toHaveAttribute('href', '/lesson/l-5');
+    expect(link).toHaveTextContent(/Начать курс/);
     expect(link).toHaveTextContent(/Урок 5/);
     expect(link).toHaveTextContent(/Утро/);
+  });
+
+  it('labels the course card "Продолжить курс" once a lesson has been completed', () => {
+    summary.value = { ...summary.value, dueCount: 0, reviewedToday: 0, allDone: true, miniTestEligible: false };
+    courseState.currentId = 'l-5';
+    courseState.completed = ['l-4'];
+    lessons.value = [
+      { id: 'l-5', stage: 5, kind: 'story', title: 'Утро', introducesCount: 2, isFreeReading: false },
+    ];
+    renderScreen();
+    const link = screen.getByRole('link', { name: /Урок 5/ });
+    expect(link).toHaveAttribute('href', '/lesson/l-5');
+    expect(link).toHaveTextContent(/Продолжить курс/);
   });
 
   it('offers the placement test on a fresh db with no grammar cards and no prior decision', () => {

@@ -61,6 +61,7 @@ const introLesson: LessonFull = {
     { type: 'grammar', id: 'g1', role: 'introduce' },
     { type: 'vocab', id: 'v1', role: 'introduce' },
     { type: 'grammar', id: 'g-known', role: 'introduce' },
+    { type: 'grammar', id: 'g-bogus', role: 'introduce' },
     { type: 'kanji', id: 'k-review', role: 'review' },
   ],
   markers: [],
@@ -74,7 +75,14 @@ const fakeDb = {
   getLesson: (id: string) =>
     id === 'n5-hanami' ? freeLesson : id === 'l-intro' ? introLesson : null,
   listLessons: () => metas,
-  getGrammar: () => null, getVocab: () => null, getKanji: () => null,
+  // g1 / g-known / v1 resolve to real content; g-bogus does not.
+  getGrammar: (id: string) =>
+    id === 'g1' || id === 'g-known'
+      ? { id, title: id, bodyMarkdown: '## Кратко\nx' }
+      : null,
+  getVocab: (id: string) =>
+    id === 'v1' ? { id, headword: '本', reading: 'ほん', meaningRu: 'книга' } : null,
+  getKanji: () => null,
   listVocab: () => [], listKanji: () => [],
 } as unknown as import('@/storage/content-db').ContentDb;
 
@@ -165,12 +173,14 @@ describe('LessonScreen', () => {
     store.completed = [];
     renderAt('/lesson/l-intro');
     expect(screen.getByText(/Урок пройден/)).toBeInTheDocument();
-    // g1 + v1 get cards; g-known skipped (has card); k-review skipped (role review)
+    // g1 + v1 get cards; g-known skipped (has card); k-review skipped (role
+    // review); g-bogus skipped (id does not resolve to real content)
     expect(upsertCard).toHaveBeenCalledTimes(2);
     const carded = upsertCard.mock.calls
       .map((c) => `${c[0].item_type}:${c[0].item_id}`)
       .sort();
     expect(carded).toEqual(['grammar:g1', 'vocab:v1']);
+    expect(carded).not.toContain('grammar:g-bogus');
     // rating-3 review of a fresh card advances it past state 0 (New)
     for (const c of upsertCard.mock.calls) {
       expect((c[0] as unknown as { reps: number; state: number }).reps).toBe(1);

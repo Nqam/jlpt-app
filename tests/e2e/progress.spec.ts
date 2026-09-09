@@ -60,7 +60,7 @@ test('after a session the Progress screen shows non-zero streak, counts and heat
   // "Изучено" progress-bar label also matches.
   await expect(win.getByText(/Изучено [1-9]/).first()).toBeVisible();
 
-  // Today is the last heat cell; 5 reviews today -> bucket > 0.
+  // Today is the last heat cell; 2 due reviews + a mini-test today -> bucket > 0.
   await expect(win.locator('.heat').last()).not.toHaveClass(/heat-0/);
 
   await app.close();

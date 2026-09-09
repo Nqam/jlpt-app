@@ -95,7 +95,8 @@ export function TodayScreen() {
       )}
       {curLesson ? (
         <Link className="btn-ghost today-course" to={`/lesson/${curLesson.id}`}>
-          Продолжить курс · Урок {curLesson.stage}: {curLesson.title}
+          {completedSet.size === 0 ? 'Начать курс' : 'Продолжить курс'} · Урок{' '}
+          {curLesson.stage}: {curLesson.title}
         </Link>
       ) : (
         <Link className="btn-ghost today-course" to="/course">Курс</Link>

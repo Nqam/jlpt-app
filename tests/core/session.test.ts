@@ -69,9 +69,9 @@ describe('core/session', () => {
     c.reps = 4; c.stability = 10; c.due = new Date(now.getTime() - 3_600_000).toISOString();
     user.upsertCard(c);
     const steps = buildDailySession(user, fakeContent(), now);
-    const p1Steps = steps.filter((s) => s.phase === 'review' && s.item.itemId === 'p1');
-    expect(p1Steps).toHaveLength(1);
-    expect(p1Steps[0]!.phase).toBe('review');
+    const reviewSteps = steps.filter((s) => s.phase === 'review');
+    expect(reviewSteps).toHaveLength(1);
+    expect(reviewSteps[0]!.item.itemId).toBe('p1');
   });
 
   it('no mini-test steps when fewer than 5 cards are learned', () => {

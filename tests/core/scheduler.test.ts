@@ -171,7 +171,7 @@ describe('core/scheduler', () => {
     const a = buildQueue(user, fakeContent(POINTS), now).map((i) => i.itemId);
     const b = buildQueue(user, fakeContent(POINTS), now).map((i) => i.itemId);
     expect(a).toEqual(b);
-    expect(a.sort()).toEqual(['p1', 'p2', 'p3']);
+    expect([...a].sort()).toEqual(['p1', 'p2', 'p3']);
   });
 
   it('merges due cards across grammar and kanji into one globally-capped queue', () => {

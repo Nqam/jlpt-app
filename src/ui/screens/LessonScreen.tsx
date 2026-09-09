@@ -62,13 +62,20 @@ export function LessonScreen() {
     };
     for (const it of lesson?.introduces ?? []) {
       if (it.role !== 'introduce') continue;
+      // Mirror LessonNewStep: skip an introduce whose id doesn't resolve to real
+      // content of its type -- don't mint a permanent ghost card.
+      const resolved =
+        it.type === 'grammar' ? db.getGrammar(it.id)
+        : it.type === 'kanji' ? db.getKanji(it.id)
+        : db.getVocab(it.id);
+      if (!resolved) continue;
       if (user.getCard(it.type, it.id)) continue;
       // Rating 3 ("Хорошо"): just taught — should resurface in ~10 min / next day.
       const { card } = review(newCard(it.type, it.id, now), 3, now, 0, params);
       user.upsertCard(card);
     }
     markLessonComplete(user, id);
-  }, [step, user, id, lesson]);
+  }, [step, user, id, lesson, db]);
 
   if (!lesson) {
     return (
