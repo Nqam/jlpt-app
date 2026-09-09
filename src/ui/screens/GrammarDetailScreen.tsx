@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useContentDb } from '../useContentDb';
-import { Furigana } from '../components/Furigana';
-import { GrammarMarkdown } from '../components/GrammarMarkdown';
+import { GrammarPointBody } from '../components/GrammarPointBody';
 import { LevelBadge } from '../components/LevelBadge';
 
 export function GrammarDetailScreen() {
@@ -30,19 +29,7 @@ export function GrammarDetailScreen() {
         {point.title} <LevelBadge level={point.level} />
       </h1>
 
-      <GrammarMarkdown source={point.bodyMarkdown} />
-
-      <h2>Примеры</h2>
-      <ul className="examples">
-        {point.examples.map((ex, i) => (
-          <li key={i} className="example">
-            <div className="example-ja">
-              <Furigana text={ex.jaRuby} />
-            </div>
-            <div className="example-ru">{ex.ru}</div>
-          </li>
-        ))}
-      </ul>
+      <GrammarPointBody point={point} />
 
       {point.relatedTitles.length > 0 && (
         <>
