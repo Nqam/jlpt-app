@@ -32,9 +32,9 @@ describe('Nav', () => {
     expect(container.querySelector('nav')!.getAttribute('data-variant')).toBe('bottom');
   });
 
-  it('lists the six primary destinations', () => {
+  it('lists the seven primary destinations', () => {
     const { getByRole } = render(<MemoryRouter><Nav /></MemoryRouter>);
-    for (const label of ['Сегодня', 'Грамматика', 'Кандзи', 'Слова', 'Тексты', 'Прогресс']) {
+    for (const label of ['Сегодня', 'Грамматика', 'Кандзи', 'Слова', 'Курс', 'Тексты', 'Прогресс']) {
       expect(getByRole('link', { name: new RegExp(label) })).toBeTruthy();
     }
   });
