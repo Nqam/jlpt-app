@@ -85,15 +85,8 @@ describe('SettingsScreen', () => {
 
   it('renders current setting values', () => {
     renderScreen();
-    expect(screen.getByLabelText(/новых карточек в день/i)).toHaveValue(5);
     expect(screen.getByLabelText(/предел повторений/i)).toHaveValue(100);
     expect(screen.getByLabelText(/показывать фуригану/i)).toBeChecked();
-  });
-
-  it('changing the daily-limit field calls setSetting with the new value', () => {
-    renderScreen();
-    fireEvent.change(screen.getByLabelText(/новых карточек в день/i), { target: { value: '8' } });
-    expect(setSetting).toHaveBeenCalledWith('new_per_day', 8);
   });
 
   it('toggling furigana calls setSetting', () => {

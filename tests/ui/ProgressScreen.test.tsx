@@ -1,10 +1,18 @@
+import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 vi.mock('@/ui/useUserDb', () => ({ useUserDb: () => ({}) }));
 
+vi.mock('@/core/course', () => ({
+  courseCompletedIds: () => ['a', 'b'],
+}));
+
+const LESSONS = [
+  { id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' },
+];
 vi.mock('@/ui/useContentDb', () => ({
-  useContentDb: () => ({}),
+  useContentDb: () => ({ listLessons: () => LESSONS }),
   useLevels: () => [],
   useEffectiveLevels: () => [
     { code: 'N5', ord: 1, titleRu: 'N5', status: 'available', rawStatus: 'available' },
@@ -44,6 +52,11 @@ function renderScreen() {
 describe('ProgressScreen', () => {
   beforeEach(() => {
     unlockLevel.mockClear();
+  });
+
+  it('shows how many course lessons are done', () => {
+    renderScreen();
+    expect(screen.getByText(/Курс: пройдено 2 из 4/)).toBeInTheDocument();
   });
 
   it('renders the ribbon and both level codes', () => {

@@ -3,6 +3,7 @@ import { useUserDb } from '@/ui/useUserDb';
 import { useContentDb, useEffectiveLevels } from '@/ui/useContentDb';
 import { levelRibbon, levelBars, statusCounts, levelCompletion, streak, heatmap } from '@/core/progress';
 import { unlockLevel, UNLOCK_THRESHOLD } from '@/core/levels';
+import { courseCompletedIds } from '@/core/course';
 import { ProgressBar } from '@/ui/components/ProgressBar';
 import { Heatmap } from '@/ui/components/Heatmap';
 import type { ItemType } from '@/core/types';
@@ -42,9 +43,16 @@ export function ProgressScreen() {
     .sort((a, b) => a.ord - b.ord)[0];
   const completion = levelCompletion(user, content, active);
 
+  const allLessons = content.listLessons();
+  const lessonIds = new Set(allLessons.map((l) => l.id));
+  const doneCount = courseCompletedIds(user).filter((x) => lessonIds.has(x)).length;
+
   return (
     <section className="progress">
       <h1>Прогресс</h1>
+      <p className="course-progress-line">
+        Курс: пройдено {doneCount} из {allLessons.length} уроков
+      </p>
 
       <div className="ribbon">
         {ribbon.map((seg) => {

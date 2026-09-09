@@ -16,7 +16,6 @@ type UpdateState =
 
 export function SettingsScreen() {
   const user = useUserDb();
-  const [newPerDay, setNewPerDay] = useState(user.getSetting('new_per_day', 5));
   const [reviewCap, setReviewCap] = useState(user.getSetting('review_queue_cap', 100));
   const [furigana, setFurigana] = useState(user.getSetting('furigana_enabled', true));
   const [status, setStatus] = useState<string | null>(null);
@@ -24,12 +23,6 @@ export function SettingsScreen() {
   // Bumped after a reset so the derived `markedByType` below is recomputed --
   // `user` is a plain object ref, not reactive state.
   const [resetTick, setResetTick] = useState(0);
-
-  const changeNewPerDay = (raw: string) => {
-    const n = Math.max(1, Math.floor(Number(raw)) || 1);
-    setNewPerDay(n);
-    user.setSetting('new_per_day', n);
-  };
 
   const changeReviewCap = (raw: string) => {
     const n = Math.max(1, Math.floor(Number(raw)) || 1);
@@ -125,17 +118,6 @@ export function SettingsScreen() {
   return (
     <section className="screen settings">
       <h1>Настройки</h1>
-
-      <div className="settings-field">
-        <label htmlFor="new-per-day">Новых карточек в день</label>
-        <input
-          id="new-per-day"
-          type="number"
-          min={1}
-          value={newPerDay}
-          onChange={(e) => changeNewPerDay(e.target.value)}
-        />
-      </div>
 
       <div className="settings-field">
         <label htmlFor="review-cap">Предел повторений в очереди</label>
