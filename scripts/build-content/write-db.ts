@@ -77,7 +77,6 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
   }
   insK.free();
   const kanjiIdSet = new Set(kanji.map((k) => k.id));
-  const levelCodeList = levels.map((l) => l.code);
 
   const grammarIds = new Set(grammar.map((g) => g.id));
 
@@ -90,7 +89,10 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
   for (const g of grammar) {
     insG.run([g.id, g.level, g.title, g.layer, JSON.stringify(g.tags), g.bodyMarkdown]);
     g.examples.forEach((e, i) => insE.run([g.id, i, e.jaRuby, e.ru]));
-    extractGrammarKanji(g.examples, kanjiIdSet, levelCodeList).forEach((kid, i) =>
+    // Only the point's own level: an N5 grammar point should not silently
+    // mint N4 kanji cards on its finale just because an example happens to
+    // contain one (52% of N5-course kanji were N4 before this — see memory).
+    extractGrammarKanji(g.examples, kanjiIdSet, [g.level]).forEach((kid, i) =>
       insGK.run([g.id, kid, i]),
     );
   }
