@@ -10,7 +10,7 @@ const MemoryRouter = (props: ComponentProps<typeof BaseMemoryRouter>) => (
   <BaseMemoryRouter future={FUTURE} {...props} />
 );
 import { VocabDetailScreen } from '@/ui/screens/VocabDetailScreen';
-import type { VocabPoint, Level } from '@/core/types';
+import type { VocabPoint, KanjiPoint, Level } from '@/core/types';
 
 const levels: Level[] = [{ code: 'N5', ord: 1, status: 'available', titleRu: 'N5' }];
 const gakkou: VocabPoint = {
@@ -19,12 +19,16 @@ const gakkou: VocabPoint = {
 const noPos: VocabPoint = {
   id: 'n5-もう', level: 'N5', headword: 'もう', reading: 'もう', pos: '', meaningRu: 'уже',
 };
+const gaku: KanjiPoint = {
+  id: 'n5-学', level: 'N5', char: '学', onyomi: ['ガク'], kunyomi: ['まな.ぶ'], strokeCount: 8, meaningRu: 'учиться',
+};
 const fakeDb = {
   getVocab: (id: string) => {
     if (id === gakkou.id) return gakkou;
     if (id === noPos.id) return noPos;
     return null;
   },
+  getKanji: (id: string) => (id === gaku.id ? gaku : null),
 } as unknown as import('@/storage/content-db').ContentDb;
 
 function renderAt(path: string) {
@@ -66,5 +70,17 @@ describe('VocabDetailScreen', () => {
   it('shows em-dash fallback for a missing part of speech', () => {
     const { getAllByText } = renderAt('/vocab/n5-もう');
     expect(getAllByText('—')).toHaveLength(1);
+  });
+
+  it('breaks the headword down into its resolvable kanji, skipping unresolved ones', () => {
+    const { getByRole, queryByRole } = renderAt('/vocab/n5-学校-がっこう');
+    expect(getByRole('link', { name: /学 · учиться/ })).toHaveAttribute('href', '/kanji/n5-学');
+    // 校 doesn't resolve in this fake db -- silently skipped, not a broken link
+    expect(queryByRole('link', { name: /^校/ })).toBeNull();
+  });
+
+  it('shows no kanji-breakdown section for a kana-only word', () => {
+    const { queryByText } = renderAt('/vocab/n5-もう');
+    expect(queryByText(/кандзи в этом слове/i)).toBeNull();
   });
 });

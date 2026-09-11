@@ -10,7 +10,7 @@ const MemoryRouter = (props: ComponentProps<typeof BaseMemoryRouter>) => (
   <BaseMemoryRouter future={FUTURE} {...props} />
 );
 import { KanjiDetailScreen } from '@/ui/screens/KanjiDetailScreen';
-import type { KanjiPoint, Level } from '@/core/types';
+import type { KanjiPoint, VocabPoint, Level } from '@/core/types';
 
 const levels: Level[] = [{ code: 'N5', ord: 1, status: 'available', titleRu: 'N5' }];
 const gaku: KanjiPoint = {
@@ -19,12 +19,16 @@ const gaku: KanjiPoint = {
 const noReadings: KanjiPoint = {
   id: 'n5-亜', level: 'N5', char: '亜', onyomi: [], kunyomi: [], strokeCount: 7, meaningRu: 'Азия',
 };
+const gakkou: VocabPoint = {
+  id: 'n5-学校-がっこう', level: 'N5', headword: '学校', reading: 'がっこう', pos: 'сущ.', meaningRu: 'школа',
+};
 const fakeDb = {
   getKanji: (id: string) => {
     if (id === gaku.id) return gaku;
     if (id === noReadings.id) return noReadings;
     return null;
   },
+  searchVocab: (q: string) => (q === gaku.char ? [gakkou] : []),
 } as unknown as import('@/storage/content-db').ContentDb;
 
 function renderAt(path: string) {
@@ -67,5 +71,15 @@ describe('KanjiDetailScreen', () => {
   it('shows em-dash fallback for missing readings', () => {
     const { getAllByText } = renderAt('/kanji/n5-亜');
     expect(getAllByText('—')).toHaveLength(2);
+  });
+
+  it('links to words containing this kanji', () => {
+    const { getByRole } = renderAt('/kanji/n5-学');
+    expect(getByRole('link', { name: /学校/ })).toHaveAttribute('href', '/vocab/n5-学校-がっこう');
+  });
+
+  it('shows no linked-words section when nothing matches', () => {
+    const { queryByText } = renderAt('/kanji/n5-亜');
+    expect(queryByText(/слова с этим кандзи/i)).toBeNull();
   });
 });
