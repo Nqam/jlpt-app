@@ -118,6 +118,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .today { max-width: min(40rem, 100%); padding: 2rem clamp(1rem, 3vw, 2.5rem); text-align: center; }
 .today-line { font-size: 1.1rem; margin: 1rem 0; }
 .today-hint { color: var(--muted); font-size: 0.9rem; }
+.today-streak-risk { color: var(--accent); font-weight: 500; }
 .btn-primary {
   display: inline-block; margin-top: 1.5rem; padding: 0.9rem 2.5rem;
   background: var(--accent); color: #fff; border-radius: 0.6rem;

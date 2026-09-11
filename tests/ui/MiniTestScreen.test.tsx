@@ -14,7 +14,11 @@ const MemoryRouter = (p: ComponentProps<typeof BaseMemoryRouter>) => (
 const upsertCard = vi.fn();
 const insertReviewLog = vi.fn();
 vi.mock('@/ui/useUserDb', () => ({
-  useUserDb: () => ({ upsertCard, insertReviewLog, getSetting: (_k: string, fb: unknown) => fb }),
+  useUserDb: () => ({
+    upsertCard, insertReviewLog,
+    getSetting: (_k: string, fb: unknown) => fb,
+    setSetting: vi.fn(),
+  }),
 }));
 vi.mock('@/ui/useContentDb', () => ({ useContentDb: () => ({}) }));
 

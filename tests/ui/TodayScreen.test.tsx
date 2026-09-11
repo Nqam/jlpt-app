@@ -34,7 +34,11 @@ vi.mock('@/ui/useContentDb', () => ({
   useContentDb: () => ({ listCourseGrammar: () => points.value }),
 }));
 vi.mock('@/core/scheduler', () => ({ daySummary: () => summary.value }));
-vi.mock('@/core/progress', () => ({ streak: () => ({ current: 4, best: 9 }) }));
+const activityToday: { value: boolean } = { value: true };
+vi.mock('@/core/progress', () => ({
+  streak: () => ({ current: 4, best: 9 }),
+  hasActivityToday: () => activityToday.value,
+}));
 vi.mock('@/core/course', () => ({
   currentCourseLessonId: () => courseState.currentId,
   courseCompletedIds: () => courseState.completed,
@@ -53,6 +57,7 @@ describe('TodayScreen', () => {
     courseState.currentId = null;
     courseState.completed = [];
     points.value = [];
+    activityToday.value = true;
     setSetting.mockClear();
   });
 
@@ -109,6 +114,18 @@ describe('TodayScreen', () => {
     const link = screen.getByRole('link', { name: /Утро/ });
     expect(link).toHaveAttribute('href', '/course/l-5');
     expect(link).toHaveTextContent(/Продолжить курс/);
+  });
+
+  it('warns the streak is at risk when there is a streak but no activity yet today', () => {
+    activityToday.value = false;
+    renderScreen();
+    expect(screen.getByText(/под угрозой/)).toBeInTheDocument();
+  });
+
+  it('does not warn when today already has activity', () => {
+    activityToday.value = true;
+    renderScreen();
+    expect(screen.queryByText(/под угрозой/)).toBeNull();
   });
 
   it('offers the placement test on a fresh db with no grammar cards and no prior decision', () => {

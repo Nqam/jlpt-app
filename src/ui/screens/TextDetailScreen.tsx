@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useContentDb } from '../useContentDb';
 import { useUserDb } from '../useUserDb';
 import { Furigana } from '../components/Furigana';
+import { recordActivity } from '@/core/progress';
 
 export function TextDetailScreen() {
   const { id = '' } = useParams();
@@ -24,6 +25,7 @@ export function TextDetailScreen() {
     if (!existing.includes(point.id)) {
       user.setSetting('texts_read_ids', [...existing, point.id]);
     }
+    recordActivity(user, new Date());
   }, [point, done, user]);
 
   if (!point) {

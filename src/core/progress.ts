@@ -64,8 +64,45 @@ export function levelCompletion(user: UserDb, content: ContentDb, levelCode: str
   return parts.length === 0 ? 0 : parts.reduce((a, b) => a + b, 0) / parts.length;
 }
 
+const K_ACTIVITY_DAYS = 'activity_days';
+/** Bounds the setting's JSON size — a day key is ~10 bytes, so this caps at
+ *  roughly a year of growth before the oldest days roll off. */
+const MAX_ACTIVITY_DAYS = 370;
+
+/**
+ * Marks `now`'s local day as "something happened" for streak/heatmap
+ * purposes, for activity that doesn't write a `review_log` row -- finishing
+ * a course lesson (finale creates cards, not a review session) or reading a
+ * text. Idempotent per day. `insertReviewLog` (real SRS reviews) already
+ * covers itself via `reviewCountsByDay` and does not need this call too.
+ */
+export function recordActivity(user: UserDb, now: Date): void {
+  const key = localDayKey(now);
+  const days = user.getSetting<string[]>(K_ACTIVITY_DAYS, []);
+  if (days.includes(key)) return;
+  const next = [...days, key].sort();
+  user.setSetting(
+    K_ACTIVITY_DAYS,
+    next.length > MAX_ACTIVITY_DAYS ? next.slice(next.length - MAX_ACTIVITY_DAYS) : next,
+  );
+}
+
+/** Every day with either a real review or a recorded non-review activity, with a count. */
+function activeDayCounts(user: UserDb): Map<string, number> {
+  const byDay = new Map(user.reviewCountsByDay().map((r) => [r.day_key, r.count]));
+  for (const day of user.getSetting<string[]>(K_ACTIVITY_DAYS, [])) {
+    if (!byDay.has(day)) byDay.set(day, 1);
+  }
+  return byDay;
+}
+
+/** Has *today* (`now`'s local day) seen any recorded activity yet? */
+export function hasActivityToday(user: UserDb, now: Date): boolean {
+  return activeDayCounts(user).has(localDayKey(now));
+}
+
 export function streak(user: UserDb, now: Date): { current: number; best: number } {
-  const days = user.reviewCountsByDay().map((r) => r.day_key).sort();
+  const days = [...activeDayCounts(user).keys()].sort();
   if (days.length === 0) return { current: 0, best: 0 };
 
   // longest run
@@ -93,7 +130,7 @@ export function streak(user: UserDb, now: Date): { current: number; best: number
 }
 
 export function heatmap(user: UserDb, now: Date, weeks: number): HeatCell[] {
-  const byDay = new Map(user.reviewCountsByDay().map((r) => [r.day_key, r.count]));
+  const byDay = activeDayCounts(user);
   const cells: HeatCell[] = [];
   const start = startOfLocalDay(now);
   const days = weeks * 7;

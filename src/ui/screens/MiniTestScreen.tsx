@@ -5,6 +5,7 @@ import { useContentDb } from '@/ui/useContentDb';
 import { buildMiniTest } from '@/core/session';
 import { QuestionView } from '@/ui/components/QuestionView';
 import { grade } from '@/core/quiz/grade';
+import { recordActivity } from '@/core/progress';
 import type { Answer, GradedAnswer } from '@/core/quiz/types';
 
 /**
@@ -81,6 +82,7 @@ export function MiniTestScreen() {
     setScore((s) => ({ correct: s.correct + (g.correct ? 1 : 0), total: s.total + 1 }));
   };
   const nextQ = () => {
+    if (last) recordActivity(user, new Date());
     setIdx((i) => i + 1);
     setGraded(null);
   };

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useUserDb } from '@/ui/useUserDb';
 import { useContentDb } from '@/ui/useContentDb';
 import { daySummary } from '@/core/scheduler';
-import { streak } from '@/core/progress';
+import { streak, hasActivityToday } from '@/core/progress';
 import { currentCourseLessonId, courseCompletedIds } from '@/core/course';
 
 function relative(iso: string, now: Date): string {
@@ -67,6 +67,7 @@ export function TodayScreen() {
   const miniMark = s.miniTestEligible ? (s.reviewedToday > 0 ? '✓' : '—') : '—';
   const showStart =
     s.dueCount > 0 || (s.miniTestEligible && s.reviewedToday === 0);
+  const streakAtRisk = st.current > 0 && !hasActivityToday(user, now);
 
   return (
     <section className="today">
@@ -93,6 +94,11 @@ export function TodayScreen() {
           )}
           {showStart && <Link className="btn-primary" to="/review">Начать</Link>}
         </>
+      )}
+      {streakAtRisk && (
+        <p className="today-hint today-streak-risk">
+          🔥 Стрик {st.current} под угрозой — сделайте что-нибудь сегодня, чтобы не сбросить.
+        </p>
       )}
       {curPoint ? (
         <Link className="btn-ghost today-course" to={`/course/${curPoint.id}`}>

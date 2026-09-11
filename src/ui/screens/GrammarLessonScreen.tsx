@@ -10,6 +10,7 @@ import { GrammarPointBody } from '../components/GrammarPointBody';
 import { GrammarReinforceStep } from '../components/GrammarReinforceStep';
 import { LevelBadge } from '../components/LevelBadge';
 import { review, newCard } from '@/core/srs';
+import { recordActivity } from '@/core/progress';
 
 /** 0 Изучение · 1 Закрепление · 2 Итог */
 const LAST_STEP = 2;
@@ -58,6 +59,7 @@ export function GrammarLessonScreen() {
       }
     }
     markLessonComplete(user, grammarId);
+    recordActivity(user, now);
   }, [step, user, grammarId, point, db]);
 
   if (!point) {

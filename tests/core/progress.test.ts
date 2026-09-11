@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 import type { PlatformAdapter } from '@/platform/adapter';
 import { UserDb } from '@/storage/user-db';
 import { newCard, review } from '@/core/srs';
-import { levelBars, statusCounts, levelCompletion, streak, heatmap } from '@/core/progress';
+import {
+  levelBars, statusCounts, levelCompletion, streak, heatmap, recordActivity, hasActivityToday,
+} from '@/core/progress';
 
 const wasm = readFileSync(createRequire(import.meta.url).resolve('sql.js/dist/sql-wasm.wasm'));
 const PARAMS = { requestRetention: 0.9, maximumInterval: 365, enableFuzz: false };
@@ -121,5 +123,38 @@ describe('core/progress', () => {
     expect(cells).toHaveLength(14);
     expect(cells[cells.length - 1]).toEqual({ dayKey: '2026-04-01', count: 1 });
     expect(cells[0]!.count).toBe(0);
+  });
+
+  it('recordActivity: hasActivityToday is false until recorded, true after, and idempotent', () => {
+    expect(hasActivityToday(user, now)).toBe(false);
+    recordActivity(user, now);
+    expect(hasActivityToday(user, now)).toBe(true);
+    recordActivity(user, now); // second call same day: no-op, no duplicate entry
+    expect(user.getSetting<string[]>('activity_days', [])).toEqual(['2026-04-01']);
+  });
+
+  it('recordActivity (no FSRS review) still builds a streak — course/text days count', () => {
+    recordActivity(user, new Date('2026-03-31T09:00:00.000Z'));
+    recordActivity(user, now); // 2026-04-01
+    expect(streak(user, now)).toEqual({ current: 2, best: 2 });
+  });
+
+  it('streak merges review-log days and activity-only days into one run', () => {
+    user.insertReviewLog({
+      item_type: 'grammar', item_id: 'p1', reviewed_at: '2026-03-30T09:00:00.000Z',
+      day_key: '2026-03-30', rating: 3, state_before: 0, stability_after: 3, elapsed_ms: 1000,
+    });
+    recordActivity(user, new Date('2026-03-31T09:00:00.000Z')); // course-only day, no review
+    user.insertReviewLog({
+      item_type: 'grammar', item_id: 'p1', reviewed_at: now.toISOString(),
+      day_key: '2026-04-01', rating: 3, state_before: 0, stability_after: 3, elapsed_ms: 1000,
+    });
+    expect(streak(user, now)).toEqual({ current: 3, best: 3 });
+  });
+
+  it('heatmap counts an activity-only day as 1', () => {
+    recordActivity(user, now);
+    const cells = heatmap(user, now, 1);
+    expect(cells[cells.length - 1]).toEqual({ dayKey: '2026-04-01', count: 1 });
   });
 });
