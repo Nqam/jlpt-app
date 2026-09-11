@@ -5,7 +5,7 @@ import type { PlatformAdapter } from '@/platform/adapter';
 import type { ContentDb, GrammarPointFull } from '@/storage/content-db';
 import { UserDb } from '@/storage/user-db';
 import { newCard } from '@/core/srs';
-import { buildDailySession } from '@/core/session';
+import { buildDailySession, buildMiniTest, miniTestReady } from '@/core/session';
 
 const wasm = readFileSync(createRequire(import.meta.url).resolve('sql.js/dist/sql-wasm.wasm'));
 
@@ -195,5 +195,65 @@ describe('core/session', () => {
     const reviewStep = steps[reviewIdx] as Extract<(typeof steps)[number], { phase: 'review' }>;
     expect(reviewStep.question.itemType).toBe('vocab');
     expect(reviewStep.question.kind).toBe('choice');
+  });
+
+  describe('buildMiniTest (combined types) / miniTestReady', () => {
+    const kanjiPoint = {
+      id: 'n5-学', level: 'N5', char: '学', onyomi: ['ガク'], kunyomi: ['まな.ぶ'], strokeCount: 8, meaningRu: 'учиться',
+    };
+    const vocabPoint = {
+      id: 'n5-挨拶-あいさつ', level: 'N5', headword: '挨拶', reading: 'あいさつ', pos: 'сущ.', meaningRu: 'приветствие',
+    };
+    function mixedContent(): ContentDb {
+      return {
+        listLevels: () => [{ code: 'N5', status: 'available', ord: 1, titleRu: 'N5' }],
+        listGrammar: () => POINTS.map((p) => ({ id: p.id, level: 'N5', title: p.title, layer: p.layer })),
+        getGrammar: (id: string) => POINTS.find((p) => p.id === id) ?? null,
+        listKanji: () => [kanjiPoint],
+        getKanji: (id: string) => (id === kanjiPoint.id ? kanjiPoint : null),
+        listVocab: () => [vocabPoint],
+        getVocab: (id: string) => (id === vocabPoint.id ? vocabPoint : null),
+      } as unknown as ContentDb;
+    }
+    function learn(itemType: 'grammar' | 'kanji' | 'vocab', id: string) {
+      const c = newCard(itemType, id, now);
+      c.reps = 5; c.stability = 12; // learned
+      c.due = new Date(now.getTime() + 7 * 86_400_000).toISOString();
+      user.upsertCard(c);
+    }
+
+    it('miniTestReady is false under 5 combined, true at/above it', () => {
+      expect(miniTestReady(user)).toBe(false);
+      for (const id of ['p1', 'p2', 'p3']) learn('grammar', id);
+      expect(miniTestReady(user)).toBe(false); // 3 so far
+      learn('kanji', kanjiPoint.id);
+      learn('vocab', vocabPoint.id);
+      expect(miniTestReady(user)).toBe(true); // 5 across all three types
+    });
+
+    it('draws questions from all requested item types, not grammar alone', () => {
+      for (const id of ['p1', 'p2', 'p3']) learn('grammar', id);
+      learn('kanji', kanjiPoint.id);
+      learn('vocab', vocabPoint.id);
+      const steps = buildMiniTest(
+        user, mixedContent(), 'seed', (id, i) => `${id}:${i}`, ['grammar', 'kanji', 'vocab'],
+      );
+      const types = new Set(steps.map((s) => s.question.itemType));
+      expect(types.has('kanji')).toBe(true);
+      expect(types.has('vocab')).toBe(true);
+    });
+
+    it('defaults to grammar-only, matching buildDailySession\'s tail behaviour', () => {
+      for (const id of POINTS.map((p) => p.id)) learn('grammar', id);
+      learn('kanji', kanjiPoint.id); // present but not requested -- must not leak in
+      const steps = buildMiniTest(user, mixedContent(), 'seed', (id, i) => `${id}:${i}`);
+      expect(steps.every((s) => s.question.itemType === 'grammar')).toBe(true);
+    });
+
+    it('[] when fewer than 5 across the requested types, even if other types have plenty', () => {
+      for (const id of POINTS.map((p) => p.id)) learn('grammar', id); // 8 learned, but wrong type
+      const steps = buildMiniTest(user, mixedContent(), 'seed', (id, i) => `${id}:${i}`, ['kanji']);
+      expect(steps).toEqual([]);
+    });
   });
 });

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useUserDb } from '@/ui/useUserDb';
 import { useContentDb } from '@/ui/useContentDb';
 import { daySummary } from '@/core/scheduler';
+import { miniTestReady } from '@/core/session';
 import { streak, hasActivityToday } from '@/core/progress';
 import { currentCourseLessonId, courseCompletedIds } from '@/core/course';
 
@@ -107,7 +108,7 @@ export function TodayScreen() {
       ) : (
         <Link className="btn-ghost today-course" to="/course">Курс</Link>
       )}
-      {s.miniTestEligible && (
+      {miniTestReady(user) && (
         <Link className="btn-ghost today-course" to="/minitest">Мини-тест</Link>
       )}
     </section>

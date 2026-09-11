@@ -25,6 +25,7 @@ export function MiniTestScreen() {
         content,
         `mt:${nonce}`,
         (id, i) => `${id}:mt:${nonce}:${i}`,
+        ['grammar', 'kanji', 'vocab'],
       ),
     [user, content, nonce],
   );
@@ -38,8 +39,9 @@ export function MiniTestScreen() {
       <section className="screen">
         <h1>Мини-тест</h1>
         <p className="muted">
-          Мини-тест откроется, когда наберётся не меньше 5 изученных пунктов
-          грамматики. Проходите курс — карточки копятся.
+          Мини-тест откроется, когда наберётся не меньше 5 изученных карточек
+          (грамматика, кандзи или слова вместе). Проходите курс, читайте
+          тексты — карточки копятся.
         </p>
         <Link to="/course" className="btn-ghost">К курсу</Link>
       </section>

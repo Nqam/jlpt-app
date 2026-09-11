@@ -13,6 +13,25 @@ import { levelPointsFor } from '@/core/quiz/level-points';
 
 export { levelPointsFor };
 
+/** Whether `/minitest`'s combined self-check has enough material to run at
+ *  all (>= 5 learned/mastered cards across `itemTypes`). Cheap enough to call
+ *  from a screen render — no caching needed for a handful of card arrays. */
+export function miniTestReady(
+  user: UserDb,
+  itemTypes: readonly ItemType[] = ['grammar', 'kanji', 'vocab'],
+): boolean {
+  const total = itemTypes.reduce(
+    (sum, t) =>
+      sum +
+      user.allCards(t).filter((c) => {
+        const s = statusOf(c);
+        return s === 'learned' || s === 'mastered';
+      }).length,
+    0,
+  );
+  return total >= 5;
+}
+
 export type SessionStep =
   | {
       phase: 'review';
@@ -80,53 +99,80 @@ export function buildDailySession(user: UserDb, content: ContentDb, now: Date): 
 }
 
 /**
- * The grammar mini-test as a standalone list of `minitest` steps. Fires only
- * when the learner has >= 5 grammar cards at status learned/mastered; 5..8
- * questions sampled from those points, one per point, kind rotating
- * cloze/choice/assemble. Never touches FSRS or user.db — it is a self-check.
+ * A mini-test as a standalone list of `minitest` steps: fires only when the
+ * learner has >= 5 cards (across `itemTypes`) at status learned/mastered;
+ * 5..8 questions sampled from those points, one per point. Never touches
+ * FSRS or user.db — it is a self-check, not a review session.
  *
- * `shuffleSeed` picks which learned points are sampled; `qSeed(sourceId, index)`
- * seeds each question. `buildDailySession` passes a per-day seed so the tail is
- * stable; the standalone `/minitest` screen passes a fresh nonce each attempt so
- * a retake varies.
+ * `itemTypes` defaults to grammar-only — `buildDailySession`'s tail keeps
+ * that default so the daily session is unchanged; the standalone `/minitest`
+ * screen passes all three types for a combined self-check. `shuffleSeed`
+ * picks which learned points are sampled; `qSeed(sourceId, index)` seeds each
+ * question. `buildDailySession` passes a per-day seed so the tail is stable;
+ * `/minitest` passes a fresh nonce each attempt so a retake varies.
  */
 export function buildMiniTest(
   user: UserDb,
   content: ContentDb,
   shuffleSeed: string,
   qSeed: (sourceId: string, index: number) => string,
+  itemTypes: readonly ItemType[] = ['grammar'],
 ): Extract<SessionStep, { phase: 'minitest' }>[] {
-  const learned = user.allCards('grammar').filter((c) => {
-    const s = statusOf(c);
-    return s === 'learned' || s === 'mastered';
-  });
+  const learned = itemTypes.flatMap((t) =>
+    user
+      .allCards(t)
+      .filter((c) => {
+        const s = statusOf(c);
+        return s === 'learned' || s === 'mastered';
+      })
+      .map((c) => ({ itemType: t, id: c.item_id })),
+  );
   if (learned.length < 5) return [];
 
-  const pointCache = new Map<string, GrammarPointFull | null>();
-  const getPoint = (id: string): GrammarPointFull | null => {
-    if (!pointCache.has(id)) pointCache.set(id, content.getGrammar(id));
-    return pointCache.get(id)!;
+  const grammarPointCache = new Map<string, GrammarPointFull | null>();
+  const getGrammarPoint = (id: string): GrammarPointFull | null => {
+    if (!grammarPointCache.has(id)) grammarPointCache.set(id, content.getGrammar(id));
+    return grammarPointCache.get(id)!;
   };
-  const levelCache = new Map<string, GrammarPointFull[]>();
-  const levelPoints = (level: string): GrammarPointFull[] => {
-    if (!levelCache.has(level)) levelCache.set(level, levelPointsFor(content, level));
-    return levelCache.get(level)!;
+  const grammarLevelCache = new Map<string, GrammarPointFull[]>();
+  const grammarLevelPoints = (level: string): GrammarPointFull[] => {
+    if (!grammarLevelCache.has(level)) grammarLevelCache.set(level, levelPointsFor(content, level));
+    return grammarLevelCache.get(level)!;
+  };
+  const kanjiLevelCache = new Map<string, KanjiPoint[]>();
+  const kanjiLevelPoints = (level: string): KanjiPoint[] => {
+    if (!kanjiLevelCache.has(level)) kanjiLevelCache.set(level, content.listKanji(level));
+    return kanjiLevelCache.get(level)!;
+  };
+  const vocabLevelCache = new Map<string, VocabPoint[]>();
+  const vocabLevelPoints = (level: string): VocabPoint[] => {
+    if (!vocabLevelCache.has(level)) vocabLevelCache.set(level, content.listVocab(level));
+    return vocabLevelCache.get(level)!;
   };
 
-  const count = Math.min(8, Math.max(5, Math.floor(learned.length / 2)));
-  const sources = seededShuffle(
-    learned.map((c) => c.item_id).filter((id) => getPoint(id) !== null),
-    shuffleSeed,
-  ).slice(0, count);
+  const resolves = (t: ItemType, id: string): boolean =>
+    t === 'grammar' ? getGrammarPoint(id) !== null
+    : t === 'kanji' ? content.getKanji(id) !== null
+    : content.getVocab(id) !== null;
 
-  return sources.map((srcId, index) => {
-    const point = getPoint(srcId)!;
-    const kind = ROTATION[index % 3]!;
-    return {
-      phase: 'minitest' as const,
-      question: generateOfKind(kind, point, levelPoints(point.level), qSeed(srcId, index)),
-      sourceItemId: srcId,
-      index,
-    };
+  const resolvable = learned.filter(({ itemType, id }) => resolves(itemType, id));
+  const count = Math.min(8, Math.max(5, Math.floor(resolvable.length / 2)));
+  const sources = seededShuffle(resolvable, shuffleSeed).slice(0, count);
+
+  return sources.map(({ itemType, id }, index) => {
+    let question: Question;
+    if (itemType === 'grammar') {
+      const point = getGrammarPoint(id)!;
+      question = generateOfKind(
+        ROTATION[index % 3]!, point, grammarLevelPoints(point.level), qSeed(id, index),
+      );
+    } else if (itemType === 'kanji') {
+      const point = content.getKanji(id)!;
+      question = generateKanjiQuestion(point, kanjiLevelPoints(point.level), index, qSeed(id, index));
+    } else {
+      const point = content.getVocab(id)!;
+      question = generateVocabQuestion(point, vocabLevelPoints(point.level), index, qSeed(id, index));
+    }
+    return { phase: 'minitest' as const, question, sourceItemId: id, index };
   });
 }

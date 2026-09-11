@@ -4,9 +4,8 @@ import { useContentDb, useEffectiveLevels } from '../useContentDb';
 import { LevelBadge } from '../components/LevelBadge';
 import { useUserDb } from '@/ui/useUserDb';
 import { statusOf } from '@/core/srs';
+import { miniTestReady } from '@/core/session';
 import { StatusDot } from '@/ui/components/StatusDot';
-
-const MINITEST_MIN_LEARNED = 5;
 
 export function GrammarListScreen() {
   const db = useContentDb();
@@ -16,12 +15,8 @@ export function GrammarListScreen() {
     for (const c of user.allCards('grammar')) m.set(c.item_id, statusOf(c));
     return m;
   }, [user]);
-  const miniTestReady = useMemo(
-    () =>
-      [...cardStatus.values()].filter((s) => s === 'learned' || s === 'mastered').length >=
-      MINITEST_MIN_LEARNED,
-    [cardStatus],
-  );
+  // Combined across all three item types -- the mini-test itself now is.
+  const miniTestIsReady = miniTestReady(user);
   const levels = useEffectiveLevels();
   const [activeLevel, setActiveLevel] = useState(levels[0]?.code ?? '');
   const [query, setQuery] = useState('');
@@ -60,7 +55,7 @@ export function GrammarListScreen() {
           Пройти тест по разделу
         </Link>
       )}
-      {miniTestReady && (
+      {miniTestIsReady && (
         <Link className="btn-ghost placement-entry" to="/minitest">
           Мини-тест
         </Link>
