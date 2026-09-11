@@ -13,7 +13,9 @@ test('browse vocab: list -> detail -> back', async () => {
   await win.getByRole('link', { name: /^学校/ }).click();
   await expect(win.getByRole('heading', { name: /学校/ })).toBeVisible();
   await expect(win.getByText('がっこう')).toBeVisible();
-  await expect(win.getByText('школа')).toBeVisible();
+  // Scoped to the field list — плоское getByText('школа') also matches the
+  // kanji-breakdown cross-link (校 · школа) that this page now shows.
+  await expect(win.locator('.vocab-detail-fields').getByText('школа')).toBeVisible();
 
   await win.locator('.back-link').click();
   await expect(win.getByRole('heading', { name: 'Слова' })).toBeVisible();
