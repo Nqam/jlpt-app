@@ -46,7 +46,7 @@ import { GrammarLessonScreen } from '@/ui/screens/GrammarLessonScreen';
 
 const levels: Level[] = [{ code: 'N5', ord: 1, status: 'available', titleRu: 'N5' }];
 
-const point = (kanjiIds: string[]): GrammarPointFull => ({
+const point = (kanjiIds: string[], introducesVocab: string[] = []): GrammarPointFull => ({
   id: 'n5-x', level: 'N5', title: 'は (тема)', layer: 1, tags: [], related: [],
   bodyMarkdown: 'Краткое объяснение частицы.',
   examples: [
@@ -55,13 +55,16 @@ const point = (kanjiIds: string[]): GrammarPointFull => ({
     { jaRuby: '本[ほん]', ru: 'книга' },
   ],
   kanjiIds,
+  introducesVocab,
   relatedTitles: [],
 });
 
 const kanjiOk = new Set(['n5-学', 'n5-校']);
+const vocabOk = new Set(['n5-学校-がっこう']);
 const fakeDb = {
   getGrammar: (id: string) => (id === 'n5-x' ? currentPoint : null),
   getKanji: (id: string) => (kanjiOk.has(id) ? { id, char: id } : null),
+  getVocab: (id: string) => (vocabOk.has(id) ? { id, headword: id } : null),
   listGrammar: () => [],
   listCourseGrammar: () => [{ id: 'n5-x' }],
 } as unknown as import('@/storage/content-db').ContentDb;
@@ -126,5 +129,16 @@ describe('GrammarLessonScreen', () => {
     expect(carded).toContain('kanji:n5-学');
     expect(carded).not.toContain('kanji:n5-nope');
     expect(carded).toContain('grammar:n5-x');
+  });
+
+  it('also creates cards for introducesVocab, skipping an id that does not resolve', () => {
+    currentPoint = point(['n5-学'], ['n5-学校-がっこう', 'n5-nope']);
+    renderAt('/course/n5-x');
+    fireEvent.click(screen.getByRole('button', { name: 'Понятно' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    const carded = upsertCard.mock.calls.map((c) => `${c[0].item_type}:${c[0].item_id}`);
+    expect(carded).toContain('vocab:n5-学校-がっこう');
+    expect(carded).not.toContain('vocab:n5-nope');
+    expect(insertReviewLog).not.toHaveBeenCalled();
   });
 });

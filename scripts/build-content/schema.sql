@@ -41,6 +41,16 @@ CREATE TABLE grammar_kanji (
   PRIMARY KEY (grammar_id, kanji_id)
 );
 
+-- Слова, которые пункт грамматики вводит — авторский список из frontmatter
+-- `introduces_vocab` (в отличие от grammar_kanji, не извлекается автоматически:
+-- сегментации японского в проекте нет). vocab_id так же намеренно не FK.
+CREATE TABLE grammar_vocab (
+  grammar_id TEXT NOT NULL REFERENCES grammar_points(id),
+  vocab_id   TEXT NOT NULL,
+  ord        INTEGER NOT NULL,
+  PRIMARY KEY (grammar_id, vocab_id)
+);
+
 CREATE TABLE kanji_points (
   id            TEXT PRIMARY KEY,
   level         TEXT NOT NULL REFERENCES levels(code),

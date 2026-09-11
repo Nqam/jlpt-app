@@ -5,6 +5,7 @@ title: "тестовый валидный пункт"
 tags: [фикстура, тест]
 related: []
 layer: 1
+introduces_vocab: [n5-学生-がくせい]
 ---
 
 ## Кратко

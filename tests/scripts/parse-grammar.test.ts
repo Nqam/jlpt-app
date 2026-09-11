@@ -15,6 +15,7 @@ describe('parseGrammarFile', () => {
     expect(p.examples[0]!.jaRuby).toMatch(/\S/);
     expect(p.examples[0]!.ru).toMatch(/\S/);
     expect(p.bodyMarkdown).toContain('## Кратко');
+    expect(p.introducesVocab).toEqual(['n5-学生-がくせい']);
   });
 
   it('throws when a required section is missing', () => {

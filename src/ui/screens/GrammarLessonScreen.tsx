@@ -47,7 +47,7 @@ export function GrammarLessonScreen() {
       maximumInterval: user.getSetting('fsrs_maximum_interval', 365),
       enableFuzz: user.getSetting('fsrs_enable_fuzz', true),
     };
-    const create = (type: 'grammar' | 'kanji', id: string) => {
+    const create = (type: 'grammar' | 'kanji' | 'vocab', id: string) => {
       if (user.getCard(type, id)) return;
       const { card } = review(newCard(type, id, now), 3, now, 0, params);
       user.upsertCard(card);
@@ -56,6 +56,9 @@ export function GrammarLessonScreen() {
       create('grammar', point.id);
       for (const kid of point.kanjiIds) {
         if (db.getKanji(kid)) create('kanji', kid);
+      }
+      for (const vid of point.introducesVocab ?? []) {
+        if (db.getVocab(vid)) create('vocab', vid);
       }
     }
     markLessonComplete(user, grammarId);

@@ -78,37 +78,8 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
   insK.free();
   const kanjiIdSet = new Set(kanji.map((k) => k.id));
 
-  const grammarIds = new Set(grammar.map((g) => g.id));
-
-  // Проход 1: сами пункты грамматики и их примеры.
-  const insG = db.prepare(
-    'INSERT INTO grammar_points (id, level, title, layer, tags_json, body_markdown) VALUES (?,?,?,?,?,?)',
-  );
-  const insE = db.prepare('INSERT INTO grammar_examples (grammar_id, ord, ja_ruby, ru) VALUES (?,?,?,?)');
-  const insGK = db.prepare('INSERT INTO grammar_kanji (grammar_id, kanji_id, ord) VALUES (?,?,?)');
-  for (const g of grammar) {
-    insG.run([g.id, g.level, g.title, g.layer, JSON.stringify(g.tags), g.bodyMarkdown]);
-    g.examples.forEach((e, i) => insE.run([g.id, i, e.jaRuby, e.ru]));
-    // Only the point's own level: an N5 grammar point should not silently
-    // mint N4 kanji cards on its finale just because an example happens to
-    // contain one (52% of N5-course kanji were N4 before this — see memory).
-    extractGrammarKanji(g.examples, kanjiIdSet, [g.level]).forEach((kid, i) =>
-      insGK.run([g.id, kid, i]),
-    );
-  }
-  insG.free();
-  insE.free();
-  insGK.free();
-
-  // Проход 2: связи — обе стороны уже существуют, FK не нарушается.
-  const insR = db.prepare('INSERT INTO grammar_relations (from_id, to_id) VALUES (?,?)');
-  for (const g of grammar) {
-    for (const r of [...g.related].sort()) {
-      if (grammarIds.has(r)) insR.run([g.id, r]);
-    }
-  }
-  insR.free();
-
+  // Слова тоже грузим и пишем ДО грамматики, тем же резоном что и kanji: их id
+  // нужен в проходе 1 для валидации/записи grammar_vocab (авторский introduces_vocab).
   const vocab = loadAllVocab(opts.vocabDir).sort((a, b) => a.id.localeCompare(b.id));
   const vocabErrors = validateVocab(vocab);
   if (vocabErrors.length) throw new Error(`vocab validation failed:\n${vocabErrors.join('\n')}`);
@@ -122,6 +93,55 @@ export function buildContentDb(opts: BuildOpts): Uint8Array {
     insV.run([v.id, v.level, v.headword, v.reading, v.pos, v.meaningRu]);
   }
   insV.free();
+  const vocabIdSet = new Set(vocab.map((v) => v.id));
+
+  // Author-specified (not auto-extracted like kanji) -- a typo id must fail the
+  // build, same treatment as an unresolvable `related` id in validateGrammar.
+  const vocabRefErrors: string[] = [];
+  for (const g of grammar) {
+    for (const vid of g.introducesVocab ?? []) {
+      if (!vocabIdSet.has(vid)) {
+        vocabRefErrors.push(`${g.id}: introduces_vocab "${vid}" does not resolve to a vocab id`);
+      }
+    }
+  }
+  if (vocabRefErrors.length) {
+    throw new Error(`grammar introduces_vocab validation failed:\n${vocabRefErrors.join('\n')}`);
+  }
+
+  const grammarIds = new Set(grammar.map((g) => g.id));
+
+  // Проход 1: сами пункты грамматики и их примеры.
+  const insG = db.prepare(
+    'INSERT INTO grammar_points (id, level, title, layer, tags_json, body_markdown) VALUES (?,?,?,?,?,?)',
+  );
+  const insE = db.prepare('INSERT INTO grammar_examples (grammar_id, ord, ja_ruby, ru) VALUES (?,?,?,?)');
+  const insGK = db.prepare('INSERT INTO grammar_kanji (grammar_id, kanji_id, ord) VALUES (?,?,?)');
+  const insGV = db.prepare('INSERT INTO grammar_vocab (grammar_id, vocab_id, ord) VALUES (?,?,?)');
+  for (const g of grammar) {
+    insG.run([g.id, g.level, g.title, g.layer, JSON.stringify(g.tags), g.bodyMarkdown]);
+    g.examples.forEach((e, i) => insE.run([g.id, i, e.jaRuby, e.ru]));
+    // Only the point's own level: an N5 grammar point should not silently
+    // mint N4 kanji cards on its finale just because an example happens to
+    // contain one (52% of N5-course kanji were N4 before this — see memory).
+    extractGrammarKanji(g.examples, kanjiIdSet, [g.level]).forEach((kid, i) =>
+      insGK.run([g.id, kid, i]),
+    );
+    (g.introducesVocab ?? []).forEach((vid, i) => insGV.run([g.id, vid, i]));
+  }
+  insG.free();
+  insE.free();
+  insGK.free();
+  insGV.free();
+
+  // Проход 2: связи — обе стороны уже существуют, FK не нарушается.
+  const insR = db.prepare('INSERT INTO grammar_relations (from_id, to_id) VALUES (?,?)');
+  for (const g of grammar) {
+    for (const r of [...g.related].sort()) {
+      if (grammarIds.has(r)) insR.run([g.id, r]);
+    }
+  }
+  insR.free();
 
   const lessons = loadAllLessons(opts.lessonsDir).sort((a, b) => a.id.localeCompare(b.id));
   const lessonErrors = validateLessons(lessons);

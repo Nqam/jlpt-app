@@ -34,6 +34,9 @@ export function parseGrammarFile(path: string): GrammarPoint {
     bodyMarkdown: content.trim(),
     examples,
     kanjiIds: [],
+    introducesVocab: Array.isArray(data['introduces_vocab'])
+      ? data['introduces_vocab'].map(String)
+      : [],
   };
 }
 

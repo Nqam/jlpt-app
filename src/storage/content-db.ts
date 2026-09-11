@@ -153,6 +153,10 @@ export class ContentDb {
       'SELECT kanji_id FROM grammar_kanji WHERE grammar_id = ? ORDER BY ord',
       [id],
     ).map((r) => r.kanji_id);
+    point.introducesVocab = this.all<{ vocab_id: string }>(
+      'SELECT vocab_id FROM grammar_vocab WHERE grammar_id = ? ORDER BY ord',
+      [id],
+    ).map((r) => r.vocab_id);
     const related = this.all<{ id: string; title: string }>(
       `SELECT p.id AS id, p.title AS title
        FROM grammar_relations r JOIN grammar_points p ON p.id = r.to_id

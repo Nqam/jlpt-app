@@ -19,6 +19,7 @@ describe('content.db schema', () => {
       'grammar_kanji',
       'grammar_points',
       'grammar_relations',
+      'grammar_vocab',
       'kanji_points',
       'lesson_questions',
       'lessons',

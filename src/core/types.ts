@@ -35,6 +35,10 @@ export interface GrammarPoint {
   examples: GrammarExample[];
   /** JLPT kanji appearing in the examples — build-time extracted. Empty from list methods. */
   kanjiIds: string[];
+  /** Vocab this point introduces — authored (frontmatter `introduces_vocab`), not
+   *  auto-extracted (no Japanese segmentation). Optional: most points won't set
+   *  it yet. `undefined`/empty from list methods, same as `kanjiIds` being `[]`. */
+  introducesVocab?: string[];
 }
 
 export interface RubySegment {
