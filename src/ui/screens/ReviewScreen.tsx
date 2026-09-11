@@ -5,11 +5,21 @@ import { useContentDb } from '@/ui/useContentDb';
 import { buildDailySession, levelPointsFor, type SessionStep } from '@/core/session';
 import { generateOfKind } from '@/core/quiz/registry';
 import { grade } from '@/core/quiz/grade';
-import { newCard, review } from '@/core/srs';
+import { newCard, review, statusOf } from '@/core/srs';
 import type { Answer, GradedAnswer } from '@/core/quiz/types';
 import type { GrammarPointFull } from '@/storage/content-db';
-import type { KanjiPoint, VocabPoint } from '@/core/types';
+import type { ItemType, KanjiPoint, VocabPoint } from '@/core/types';
 import { QuestionView } from '@/ui/components/QuestionView';
+
+/** Prior lapses at/above this count means the card is a known leech. */
+const LEECH_LAPSES = 3;
+
+/** What to show for a missed item in the end-of-session recap. */
+function itemLabel(itemType: ItemType, point: GrammarPointFull | KanjiPoint | VocabPoint): string {
+  if (itemType === 'grammar') return (point as GrammarPointFull).title;
+  if (itemType === 'kanji') return (point as KanjiPoint).char;
+  return (point as VocabPoint).headword;
+}
 
 export function ReviewScreen() {
   const user = useUserDb();
@@ -40,6 +50,11 @@ export function ReviewScreen() {
   const retryIds = useRef<Set<string>>(new Set());
   const retryBuilt = useRef(false);
   const [tally, setTally] = useState({ rc: 0, rt: 0, mc: 0, mt: 0 });
+  const [mistakes, setMistakes] = useState<{ itemType: ItemType; itemId: string; label: string }[]>([]);
+  const [milestones, setMilestones] = useState(0);
+  // A card that was already failing before this answer -- surfaced so the
+  // learner gets pointed at the explanation instead of just cycling it again.
+  const [isLeech, setIsLeech] = useState(false);
 
   const step: SessionStep | undefined = steps[idx];
 
@@ -74,6 +89,7 @@ export function ReviewScreen() {
     initedIdx.current = idx;
     setGraded(null);
     setLastAnswer(null);
+    setIsLeech(false);
     shownAt.current = Date.now();
   }, [idx, step]);
 
@@ -105,9 +121,17 @@ export function ReviewScreen() {
       if (!step || graded) return;
       responseMs.current = Date.now() - shownAt.current;
       setLastAnswer(a);
-      setGraded(grade(step.question, a, responseMs.current));
+      const g = grade(step.question, a, responseMs.current);
+      setGraded(g);
+      // Already-struggling card (>= LEECH_LAPSES prior lapses) failed again --
+      // flag it so the learner gets pointed at the explanation, not just a
+      // repeat of the same MCQ.
+      if (step.phase === 'review' && !g.correct) {
+        const existing = user.getCard(step.item.itemType, step.item.itemId);
+        setIsLeech((existing?.lapses ?? 0) >= LEECH_LAPSES);
+      }
     },
-    [step, graded],
+    [step, graded, user],
   );
 
   const next = useCallback(() => {
@@ -117,10 +141,18 @@ export function ReviewScreen() {
       const elapsedMs = responseMs.current;
       const { itemType, itemId } = step.item;
       const base = user.getCard(itemType, itemId) ?? newCard(itemType, itemId, now);
+      const beforeStatus = statusOf(base);
       const { card, log } = review(base, graded.rating, now, elapsedMs, params);
       user.upsertCard(card);
       user.insertReviewLog(log);
       setTally((t) => ({ ...t, rc: t.rc + (graded.correct ? 1 : 0), rt: t.rt + 1 }));
+      const afterStatus = statusOf(card);
+      if (beforeStatus !== afterStatus && (afterStatus === 'learned' || afterStatus === 'mastered')) {
+        setMilestones((m) => m + 1);
+      }
+      if (!graded.correct && point) {
+        setMistakes((m) => [...m, { itemType, itemId, label: itemLabel(itemType, point) }]);
+      }
     } else if (step.phase === 'minitest' && graded) {
       if (step.index < 1000) {
         if (!graded.correct) retryIds.current.add(step.sourceItemId);
@@ -128,7 +160,7 @@ export function ReviewScreen() {
       }
     }
     setIdx((i) => i + 1);
-  }, [step, graded, user, params]);
+  }, [step, graded, user, params, point]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -161,6 +193,21 @@ export function ReviewScreen() {
         <p className="review-summary">
           Верно {tally.rc}/{tally.rt} · {mt}
         </p>
+        {milestones > 0 && (
+          <p className="review-milestone">🎉 Закреплено: +{milestones}</p>
+        )}
+        {mistakes.length > 0 && (
+          <div className="review-mistakes">
+            <h2>Разобрать ещё раз</h2>
+            <ul>
+              {mistakes.map((m, i) => (
+                <li key={i}>
+                  <a href={`#/${m.itemType}/${m.itemId}`}>{m.label}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <button type="button" className="btn-primary" onClick={() => navigate('/')}>
           Готово
         </button>
@@ -183,6 +230,12 @@ export function ReviewScreen() {
           onAnswer={answer}
           revealed={graded}
         />
+        {isLeech && step.phase === 'review' && (
+          <p className="review-leech-hint">
+            Эта карточка даётся тяжело — может, стоит разобрать{' '}
+            <a href={`#/${step.item.itemType}/${step.item.itemId}`}>объяснение</a> ещё раз.
+          </p>
+        )}
         {graded && (
           <button type="button" className="btn-primary" onClick={next}>
             Далее

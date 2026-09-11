@@ -129,6 +129,13 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .review-progress { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
 .review-cue { color: var(--muted); margin: 1.5rem 0; }
 .review-summary { font-size: 1.1rem; margin: 1rem 0 0.5rem; }
+.review-milestone { font-size: 1.05rem; font-weight: 600; color: var(--accent); margin: 0 0 0.5rem; }
+.review-mistakes { text-align: left; margin: 0.5rem 0 1.5rem; }
+.review-mistakes h2 { font-size: 0.95rem; margin: 0 0 0.4rem; color: var(--muted); }
+.review-mistakes ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.review-mistakes a { color: var(--accent); text-decoration: none; }
+.review-leech-hint { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+.review-leech-hint a { color: var(--accent); }
 .btn-ghost {
   margin-top: 1rem; padding: 0.7rem 1.8rem; background: transparent;
   border: 1px solid var(--border); color: var(--text); border-radius: 0.6rem;

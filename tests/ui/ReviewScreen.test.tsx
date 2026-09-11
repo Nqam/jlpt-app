@@ -7,14 +7,25 @@ import type { ChoiceQuestion } from '@/core/quiz/types';
 
 const upsertCard = vi.fn();
 const insertReviewLog = vi.fn();
+const seededCards = new Map<string, { lapses: number }>();
 vi.mock('@/ui/useUserDb', () => ({
   useUserDb: () => ({
-    getCard: () => null,
+    getCard: (t: string, i: string) => seededCards.get(`${t}:${i}`) ?? null,
     upsertCard,
     insertReviewLog,
     getSetting: (_k: string, d: unknown) => d,
   }),
 }));
+
+const statusOfSequence: ('new' | 'learning' | 'learned' | 'mastered')[] = [];
+vi.mock('@/core/srs', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/core/srs')>();
+  return {
+    ...real,
+    statusOf: (...args: Parameters<typeof real.statusOf>) =>
+      statusOfSequence.length ? statusOfSequence.shift()! : real.statusOf(...args),
+  };
+});
 vi.mock('@/ui/useContentDb', () => ({
   useContentDb: () => ({
     getGrammar: (id: string) => ({
@@ -66,6 +77,8 @@ describe('ReviewScreen', () => {
   beforeEach(() => {
     upsertCard.mockClear();
     insertReviewLog.mockClear();
+    seededCards.clear();
+    statusOfSequence.length = 0;
   });
 
   it('a review step persists exactly one card and one log row', () => {
@@ -179,5 +192,55 @@ describe('ReviewScreen', () => {
     const cardArg = upsertCard.mock.calls[0]![0] as { item_type: string; item_id: string };
     expect(cardArg.item_type).toBe('vocab');
     expect(cardArg.item_id).toBe('n5-挨拶-あいさつ');
+  });
+
+  it('a wrong review answer lists the item under "Разобрать ещё раз" on the done screen', () => {
+    steps.value = [{
+      phase: 'review',
+      item: { itemType: 'grammar', itemId: 'p1' },
+      question: choiceQ('p1:d:choice'),
+    }];
+    renderScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'B' })); // wrong (answerIndex is 0)
+    fireEvent.click(screen.getByRole('button', { name: /далее/i }));
+    expect(screen.getByRole('heading', { name: /разобрать ещё раз/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /p1 \(частица\)/ })).toHaveAttribute('href', '#/grammar/p1');
+  });
+
+  it('a status upgrade to learned/mastered shows the milestone line', () => {
+    steps.value = [{
+      phase: 'review',
+      item: { itemType: 'grammar', itemId: 'p1' },
+      question: choiceQ('p1:d:choice'),
+    }];
+    statusOfSequence.push('learning', 'learned');
+    renderScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'A' })); // correct
+    fireEvent.click(screen.getByRole('button', { name: /далее/i }));
+    expect(screen.getByText(/Закреплено: \+1/)).toBeInTheDocument();
+  });
+
+  it('a card already at >= 3 lapses shows the leech hint on another miss', () => {
+    seededCards.set('grammar:p1', { lapses: 3 });
+    steps.value = [{
+      phase: 'review',
+      item: { itemType: 'grammar', itemId: 'p1' },
+      question: choiceQ('p1:d:choice'),
+    }];
+    renderScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'B' })); // wrong
+    expect(screen.getByText(/даётся тяжело/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'объяснение' })).toHaveAttribute('href', '#/grammar/p1');
+  });
+
+  it('a fresh card missing (< 3 lapses) does not show the leech hint', () => {
+    steps.value = [{
+      phase: 'review',
+      item: { itemType: 'grammar', itemId: 'p1' },
+      question: choiceQ('p1:d:choice'),
+    }];
+    renderScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'B' })); // wrong, no seeded card
+    expect(screen.queryByText(/даётся тяжело/)).toBeNull();
   });
 });
