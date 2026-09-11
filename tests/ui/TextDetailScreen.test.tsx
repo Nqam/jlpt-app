@@ -15,6 +15,11 @@ const readIds: { value: string[] } = { value: [] };
 const setSetting = vi.fn((key: string, value: unknown) => {
   if (key === 'texts_read_ids') readIds.value = value as string[];
 });
+const cards = new Map<string, unknown>();
+const getCard = vi.fn((t: string, i: string) => cards.get(`${t}:${i}`) ?? null);
+const upsertCard = vi.fn((c: { item_type: string; item_id: string }) => {
+  cards.set(`${c.item_type}:${c.item_id}`, c);
+});
 vi.mock('@/ui/useUserDb', () => ({
   useUserDb: () => ({
     getSetting: (key: string, fallback: unknown) => {
@@ -23,11 +28,13 @@ vi.mock('@/ui/useUserDb', () => ({
       return fallback;
     },
     setSetting,
+    getCard,
+    upsertCard,
   }),
 }));
 
 import { TextDetailScreen } from '@/ui/screens/TextDetailScreen';
-import type { Level, LessonFull } from '@/core/types';
+import type { Level, LessonFull, VocabPoint } from '@/core/types';
 
 const levels: Level[] = [{ code: 'N5', ord: 1, status: 'available', titleRu: 'N5' }];
 const sample: LessonFull = {
@@ -42,8 +49,13 @@ const sample: LessonFull = {
     { prompt: 'Вопрос 2?', choices: ['D', 'E', 'F'], answerIndex: 0 },
   ],
 };
+const bunVocab: VocabPoint = {
+  id: 'n5-文-ぶん', level: 'N5', headword: '文', reading: 'ぶん', pos: 'сущ.', meaningRu: 'предложение',
+};
+const vocabPool: { value: VocabPoint[] } = { value: [] };
 const fakeDb = {
   getLesson: (id: string) => (id === sample.id ? sample : null),
+  listVocab: () => vocabPool.value,
 } as unknown as import('@/storage/content-db').ContentDb;
 
 function renderAt(path: string) {
@@ -63,6 +75,10 @@ describe('TextDetailScreen', () => {
     furiganaSetting.value = true;
     readIds.value = [];
     setSetting.mockClear();
+    cards.clear();
+    getCard.mockClear();
+    upsertCard.mockClear();
+    vocabPool.value = [];
   });
 
   it('renders the title and both paragraphs with furigana', () => {
@@ -131,5 +147,32 @@ describe('TextDetailScreen', () => {
   it('links back to the texts list', () => {
     renderAt('/texts/n5-sample');
     expect(screen.getByRole('link', { name: /тексты/i })).toHaveAttribute('href', '/texts');
+  });
+
+  it('lists a word spotted in the text and creates a rating-3 card (no review log) on add', () => {
+    vocabPool.value = [bunVocab];
+    renderAt('/texts/n5-sample'); // body contains 文[ぶん]
+    expect(screen.getByRole('heading', { name: /слова в этом тексте/i })).toBeInTheDocument();
+    const addBtn = screen.getByRole('button', { name: '+ добавить' });
+    fireEvent.click(addBtn);
+    expect(upsertCard).toHaveBeenCalledTimes(1);
+    const cardArg = upsertCard.mock.calls[0]![0] as { item_type: string; item_id: string; reps: number };
+    expect(cardArg.item_type).toBe('vocab');
+    expect(cardArg.item_id).toBe('n5-文-ぶん');
+    expect(cardArg.reps).toBe(1); // one rating-3 review happened
+    expect(screen.getByRole('button', { name: '✓ добавлено' })).toBeDisabled();
+  });
+
+  it('does not list a word that already has a card', () => {
+    cards.set('vocab:n5-文-ぶん', { item_type: 'vocab', item_id: 'n5-文-ぶん' });
+    vocabPool.value = [bunVocab];
+    renderAt('/texts/n5-sample');
+    expect(screen.queryByRole('heading', { name: /слова в этом тексте/i })).toBeNull();
+  });
+
+  it('shows no words-in-text section when nothing in the pool matches', () => {
+    vocabPool.value = [];
+    renderAt('/texts/n5-sample');
+    expect(screen.queryByRole('heading', { name: /слова в этом тексте/i })).toBeNull();
   });
 });
