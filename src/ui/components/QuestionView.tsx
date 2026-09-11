@@ -17,6 +17,7 @@ export function QuestionView({
 }) {
   const [pickedIndex, setPickedIndex] = useState<number | null>(null);
   const [pickedOrder, setPickedOrder] = useState<number[]>([]);
+  const [typed, setTyped] = useState('');
 
   const breakdown = revealed && (
     <div className="q-breakdown">
@@ -29,6 +30,9 @@ export function QuestionView({
             text={question.answerOrder.map((i) => question.tokens[i]).join(' ')}
           />
         </p>
+      )}
+      {question.kind === 'type' && !revealed.correct && (
+        <p className="q-answer-line">{question.answerText[0]}</p>
       )}
       {showExplainLink && (
         <a className="q-more" href={`#/${question.itemType}/${question.itemId}`}>
@@ -84,6 +88,39 @@ export function QuestionView({
             );
           })}
         </div>
+        {breakdown}
+      </div>
+    );
+  }
+
+  if (question.kind === 'type') {
+    const submit = () => {
+      if (revealed || !typed.trim()) return;
+      onAnswer({ kind: 'text', value: typed });
+    };
+    return (
+      <div className="q q-type">
+        <p className="q-prompt">{question.prompt}</p>
+        <input
+          type="text"
+          className="q-type-input"
+          aria-label={question.prompt}
+          value={typed}
+          disabled={revealed !== null}
+          autoFocus
+          onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit();
+          }}
+        />
+        <button
+          type="button"
+          className="btn-primary q-done"
+          disabled={!typed.trim() || revealed !== null}
+          onClick={submit}
+        >
+          Проверить
+        </button>
         {breakdown}
       </div>
     );

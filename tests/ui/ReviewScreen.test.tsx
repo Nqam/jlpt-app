@@ -83,6 +83,41 @@ describe('ReviewScreen', () => {
     expect(screen.getByText(/мини-тест —/)).toBeInTheDocument();
   });
 
+  it('grades a fast correct answer Easy(4) and a slow one Hard(2), by response time', () => {
+    steps.value = [{
+      phase: 'review',
+      item: { itemType: 'grammar', itemId: 'p1' },
+      question: choiceQ('p1:d:choice'),
+    }];
+    vi.useFakeTimers();
+    try {
+      renderScreen();
+      vi.advanceTimersByTime(1_000); // fast
+      fireEvent.click(screen.getByRole('button', { name: 'A' }));
+      fireEvent.click(screen.getByRole('button', { name: /далее/i }));
+      expect(insertReviewLog.mock.calls[0]![0]).toMatchObject({ rating: 4 });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    insertReviewLog.mockClear();
+    steps.value = [{
+      phase: 'review',
+      item: { itemType: 'grammar', itemId: 'p1' },
+      question: choiceQ('p1:d:choice'),
+    }];
+    vi.useFakeTimers();
+    try {
+      renderScreen();
+      vi.advanceTimersByTime(20_000); // slow
+      fireEvent.click(screen.getByRole('button', { name: 'A' }));
+      fireEvent.click(screen.getByRole('button', { name: /далее/i }));
+      expect(insertReviewLog.mock.calls[0]![0]).toMatchObject({ rating: 2 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('a mini-test step never persists, and a failure triggers a retry round', () => {
     steps.value = [{
       phase: 'minitest', sourceItemId: 'p1', index: 0, question: choiceQ('p1:mt:0'),

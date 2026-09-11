@@ -1,5 +1,5 @@
 import type { VocabPoint } from '@/core/types';
-import type { ChoiceQuestion, Question } from '@/core/quiz/types';
+import type { ChoiceQuestion, Question, TypeQuestion } from '@/core/quiz/types';
 import { pickDistractors, distractorPool, shuffleWithAnswer } from '@/core/quiz/distractors';
 
 export const genVocabMeaning = (
@@ -41,10 +41,30 @@ export const genVocabReading = (
 };
 
 /**
- * Alternates meaning/reading by reps parity, same as kanji -- EXCEPT a
- * kana-only word (headword === reading, e.g. "あんな") has no reading
- * question worth asking ("how is it read?" when the headword already IS the
- * reading is trivial), so it always gets a meaning question.
+ * Typed-recall reading: the learner writes the kana reading instead of
+ * picking it out of four choices. Production, not recognition — a stronger
+ * memory signal than multiple choice. Graded by exact match after trimming
+ * (see `grade.ts`), so it only makes sense where the reading is a single
+ * clean kana string — exactly the words `generateVocabQuestion` already
+ * excludes from reading questions altogether.
+ */
+export const genVocabReadingTyped = (
+  point: VocabPoint,
+  seed: string,
+): TypeQuestion => ({
+  id: seed,
+  itemType: 'vocab',
+  itemId: point.id,
+  kind: 'type',
+  prompt: `Напишите чтение «${point.headword}» хираганой`,
+  answerText: [point.reading],
+});
+
+/**
+ * Rotates meaning (choice) / reading (choice) / reading (typed) by reps mod
+ * 3 -- EXCEPT a kana-only word (headword === reading, e.g. "あんな") has no
+ * reading question worth asking ("how is it read?" when the headword already
+ * IS the reading is trivial), so it always gets a meaning question.
  */
 export function generateVocabQuestion(
   point: VocabPoint,
@@ -53,6 +73,9 @@ export function generateVocabQuestion(
   seed: string,
 ): Question {
   if (point.headword === point.reading) return genVocabMeaning(point, levelPoints, seed);
-  const wantReading = ((reps % 2) + 2) % 2 === 1;
-  return wantReading ? genVocabReading(point, levelPoints, seed) : genVocabMeaning(point, levelPoints, seed);
+  switch (((reps % 3) + 3) % 3) {
+    case 1: return genVocabReading(point, levelPoints, seed);
+    case 2: return genVocabReadingTyped(point, seed);
+    default: return genVocabMeaning(point, levelPoints, seed);
+  }
 }

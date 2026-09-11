@@ -213,6 +213,10 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .q-tok:disabled { cursor: default; }
 .q-tok-line { background: color-mix(in srgb, var(--accent) 15%, transparent); }
 .q-done { align-self: flex-start; }
+.q-type-input { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text); font: inherit; font-family: var(--font-ja);
+  font-size: 1.1rem; }
+.q-type-input:disabled { opacity: 0.7; }
 .verdict-ok { color: var(--ok); font-weight: 600; margin: 0; }
 .verdict-bad { color: var(--bad); font-weight: 600; margin: 0; }
 .q-breakdown { display: flex; flex-direction: column; gap: 8px;

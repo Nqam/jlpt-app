@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { genVocabMeaning, genVocabReading, generateVocabQuestion } from '@/core/quiz/vocab-questions';
+import {
+  genVocabMeaning, genVocabReading, genVocabReadingTyped, generateVocabQuestion,
+} from '@/core/quiz/vocab-questions';
 import type { VocabPoint } from '@/core/types';
 
 const aisatsu: VocabPoint = {
@@ -48,13 +50,26 @@ describe('genVocabReading', () => {
   });
 });
 
+describe('genVocabReadingTyped', () => {
+  it('is a typed-recall question whose accepted answer is the reading', () => {
+    const q = genVocabReadingTyped(aisatsu, 's');
+    expect(q.kind).toBe('type');
+    expect(q.itemType).toBe('vocab');
+    expect(q.itemId).toBe('n5-挨拶-あいさつ');
+    expect(q.prompt).toContain('挨拶');
+    expect(q.answerText).toEqual(['あいさつ']);
+  });
+});
+
 describe('generateVocabQuestion', () => {
-  it('alternates meaning/reading by reps parity for a word with a distinct reading', () => {
+  it('rotates meaning / reading (choice) / reading (typed) by reps mod 3', () => {
     const meaning = genVocabMeaning(aisatsu, others, 'x:0');
     const reading = genVocabReading(aisatsu, others, 'x:0');
+    const typed = genVocabReadingTyped(aisatsu, 'x:0');
     expect(generateVocabQuestion(aisatsu, others, 0, 'x:0')).toEqual(meaning);
     expect(generateVocabQuestion(aisatsu, others, 1, 'x:0')).toEqual(reading);
-    expect(generateVocabQuestion(aisatsu, others, 2, 'x:0')).toEqual(meaning);
+    expect(generateVocabQuestion(aisatsu, others, 2, 'x:0')).toEqual(typed);
+    expect(generateVocabQuestion(aisatsu, others, 3, 'x:0')).toEqual(meaning);
   });
 
   it('always asks meaning for a kana-only word, regardless of reps parity', () => {

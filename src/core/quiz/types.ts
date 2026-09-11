@@ -1,6 +1,6 @@
 import type { ItemType } from '@/core/types';
 
-export type QuestionKind = 'cloze' | 'choice' | 'assemble';
+export type QuestionKind = 'cloze' | 'choice' | 'assemble' | 'type';
 
 export interface QuestionBase {
   /** Детерминированный id вопроса — совпадает с seed-строкой генерации. */
@@ -40,14 +40,23 @@ export interface AssembleQuestion extends QuestionBase {
   translationRu: string;
 }
 
-export type Question = ClozeQuestion | ChoiceQuestion | AssembleQuestion;
+export interface TypeQuestion extends QuestionBase {
+  kind: 'type';
+  /** Accepted normalized answers (trimmed) — usually one string, e.g. the kana
+   *  reading of a word. Typed recall: no choices, the learner writes it. */
+  answerText: string[];
+}
+
+export type Question = ClozeQuestion | ChoiceQuestion | AssembleQuestion | TypeQuestion;
 
 export type Answer =
   | { kind: 'index'; value: number }
-  | { kind: 'order'; value: number[] };
+  | { kind: 'order'; value: number[] }
+  | { kind: 'text'; value: string };
 
 export interface GradedAnswer {
   correct: boolean;
-  /** 1 = Again, 3 = Good (ts-fsrs Rating). */
-  rating: 1 | 3;
+  /** 1 = Again, 2 = Hard, 3 = Good, 4 = Easy (ts-fsrs Rating). Wrong is always 1;
+   *  right scales by response time (see `grade`). */
+  rating: 1 | 2 | 3 | 4;
 }

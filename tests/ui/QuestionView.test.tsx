@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QuestionView } from '@/ui/components/QuestionView';
-import type { ClozeQuestion, AssembleQuestion, ChoiceQuestion } from '@/core/quiz/types';
+import type { ClozeQuestion, AssembleQuestion, ChoiceQuestion, TypeQuestion } from '@/core/quiz/types';
 
 vi.mock('@/ui/useUserDb', () => ({
   useUserDb: () => ({ getSetting: (_key: string, fallback: unknown) => fallback }),
@@ -105,5 +105,40 @@ describe('QuestionView', () => {
     expect(done).toBeEnabled();
     fireEvent.click(done);
     expect(onAnswer).toHaveBeenCalledWith({ kind: 'order', value: [3, 1, 2, 0] });
+  });
+
+  const typeQ: TypeQuestion = {
+    id: 'v:0:type', itemType: 'vocab', itemId: 'n5-挨拶-あいさつ', kind: 'type',
+    prompt: 'Напишите чтение «挨拶» хираганой', answerText: ['あいさつ'],
+  };
+
+  it('type: Проверить is disabled until something is typed, then reports the text', () => {
+    const onAnswer = vi.fn();
+    render(<QuestionView question={typeQ} onAnswer={onAnswer} revealed={null} />);
+    const submit = screen.getByRole('button', { name: /проверить/i });
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'あいさつ' } });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    expect(onAnswer).toHaveBeenCalledWith({ kind: 'text', value: 'あいさつ' });
+  });
+
+  it('type: Enter submits the same as the button', () => {
+    const onAnswer = vi.fn();
+    render(<QuestionView question={typeQ} onAnswer={onAnswer} revealed={null} />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'あいさつ' } });
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+    expect(onAnswer).toHaveBeenCalledWith({ kind: 'text', value: 'あいさつ' });
+  });
+
+  it('type: shows the accepted answer only when the reveal was wrong', () => {
+    const { rerender } = render(
+      <QuestionView question={typeQ} onAnswer={vi.fn()} revealed={{ correct: false, rating: 1 }} />,
+    );
+    expect(screen.getByText('あいさつ')).toBeInTheDocument();
+    rerender(
+      <QuestionView question={typeQ} onAnswer={vi.fn()} revealed={{ correct: true, rating: 3 }} />,
+    );
+    expect(screen.queryAllByText('あいさつ')).toHaveLength(0);
   });
 });

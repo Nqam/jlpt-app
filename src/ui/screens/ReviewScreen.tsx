@@ -95,11 +95,17 @@ export function ReviewScreen() {
     if (built.length) setTail(built);
   }, [idx, baseSteps.length, content]);
 
+  // Response time (question shown -> answered), NOT answered -> "Далее" clicked —
+  // captured once per step so idle time spent looking at the reveal doesn't
+  // inflate it. Feeds both the auto-grade rating and the FSRS review log.
+  const responseMs = useRef(0);
+
   const answer = useCallback(
     (a: Answer) => {
       if (!step || graded) return;
+      responseMs.current = Date.now() - shownAt.current;
       setLastAnswer(a);
-      setGraded(grade(step.question, a));
+      setGraded(grade(step.question, a, responseMs.current));
     },
     [step, graded],
   );
@@ -108,7 +114,7 @@ export function ReviewScreen() {
     if (!step) return;
     if (step.phase === 'review' && graded) {
       const now = new Date();
-      const elapsedMs = Date.now() - shownAt.current;
+      const elapsedMs = responseMs.current;
       const { itemType, itemId } = step.item;
       const base = user.getCard(itemType, itemId) ?? newCard(itemType, itemId, now);
       const { card, log } = review(base, graded.rating, now, elapsedMs, params);
